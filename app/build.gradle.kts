@@ -17,6 +17,34 @@ android {
         versionName = "1.0"
     }
 
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    // ADD THIS BLOCK
+    buildTypes {
+        debug {
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+
     buildFeatures {
         compose = true
     }
@@ -33,6 +61,7 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
 }
 dependencies {
     implementation(libs.androidx.core.ktx)

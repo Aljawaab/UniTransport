@@ -1,7 +1,10 @@
 package com.example.unitransport.features.dashboard.model
 
 import com.example.unitransport.features.auth.model.UserRole
+import androidx.compose.runtime.Stable
 
+
+@Stable
 data class DashboardStats(
     val totalBookings: Int = 0,
     val pendingBookings: Int = 0,
@@ -9,6 +12,7 @@ data class DashboardStats(
     val activeTrips: Int = 0
 )
 
+@Stable
 data class QuickBooking(
     val id: String,
     val destination: String,
@@ -18,6 +22,7 @@ data class QuickBooking(
     val vehicleType: String
 )
 
+@Stable
 data class RecentActivity(
     val id: String,
     val title: String,
@@ -43,6 +48,7 @@ enum class ActivityType {
     TRIP_COMPLETED
 }
 
+@Stable
 data class DashboardUiData(
     val userName: String = "",
     val role: UserRole = UserRole.STUDENT,
@@ -50,3 +56,4 @@ data class DashboardUiData(
     val upcomingBookings: List<QuickBooking> = emptyList(),
     val recentActivities: List<RecentActivity> = emptyList()
 )
+
