@@ -12,6 +12,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.unitransport.core.navigation.AppDestinations
 import com.example.unitransport.core.navigation.BottomNavItem
 import com.example.unitransport.core.ui.components.AppBottomNav
+import com.example.unitransport.features.auth.model.UserRole
 import com.example.unitransport.features.bookings.presentation.BookingHistoryScreen
 import com.example.unitransport.features.calendar.presentation.CalendarScreen
 import com.example.unitransport.features.notifications.presentation.NotificationsScreen
@@ -19,6 +20,7 @@ import com.example.unitransport.features.vehicles.presentation.VehicleListScreen
 
 @Composable
 fun MainScreen(
+    role: UserRole = UserRole.STUDENT,
     onNavigateToCreateBooking: () -> Unit = {},
     onNavigateToVehicleDetail: (String) -> Unit = {},
     onNavigateToBookingDetail: (String) -> Unit = {},
@@ -38,22 +40,19 @@ fun MainScreen(
             modifier = Modifier.padding(paddingValues)
         ) {
             composable(AppDestinations.DASHBOARD) {
-                StudentDashboardScreen(
+                BookerDashboardScreen(
+                    role = role,
                     onNavigateToCreateBooking = onNavigateToCreateBooking,
                     onNavigateToBookingHistory = {
                         bottomNavController.navigate(
                             AppDestinations.BOOKING_HISTORY
-                        ) {
-                            launchSingleTop = true
-                        }
+                        ) { launchSingleTop = true }
                     },
                     onNavigateToBookingDetail = onNavigateToBookingDetail,
                     onNavigateToNotifications = {
                         bottomNavController.navigate(
                             AppDestinations.NOTIFICATIONS
-                        ) {
-                            launchSingleTop = true
-                        }
+                        ) { launchSingleTop = true }
                     },
                     onNavigateToProfile = onNavigateToProfile
                 )
@@ -68,9 +67,7 @@ fun MainScreen(
             }
 
             composable(AppDestinations.BOOKING_HISTORY) {
-                BookingHistoryScreen(
-                    onNavigateToDetail = {}
-                )
+                BookingHistoryScreen(onNavigateToDetail = {})
             }
 
             composable(AppDestinations.CALENDAR) {
@@ -78,9 +75,7 @@ fun MainScreen(
             }
 
             composable(AppDestinations.NOTIFICATIONS) {
-                NotificationsScreen(
-                    onNavigateToBooking = {}
-                )
+                NotificationsScreen(onNavigateToBooking = {})
             }
         }
     }

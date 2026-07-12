@@ -16,12 +16,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PendingActions
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
@@ -43,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -58,7 +59,8 @@ import com.example.unitransport.features.dashboard.model.DashboardUiData
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentDashboardScreen(
+fun BookerDashboardScreen(
+    role: UserRole = UserRole.STUDENT,
     onNavigateToCreateBooking: () -> Unit = {},
     onNavigateToBookingHistory: () -> Unit = {},
     onNavigateToBookingDetail: (String) -> Unit = {},
@@ -69,7 +71,14 @@ fun StudentDashboardScreen(
     val dashboardState by viewModel.dashboardState.collectAsState()
 
     LaunchedEffect(key1 = Unit) {
-        viewModel.loadDashboard(UserRole.STUDENT)
+        viewModel.loadDashboard(role)
+    }
+
+    // Role-specific portal label
+    val portalLabel = when (role) {
+        UserRole.STAFF -> "Staff Portal"
+        UserRole.CLUB_REPRESENTATIVE -> "Club Portal"
+        else -> "Student Portal"
     }
 
     Scaffold(
@@ -83,19 +92,16 @@ fun StudentDashboardScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Text(
-                            text = "Student Portal",
+                            text = portalLabel,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onPrimary
+                                .copy(alpha = 0.8f)
                         )
                     }
                 },
                 actions = {
                     BadgedBox(
-                        badge = {
-                            Badge {
-                                Text("3")
-                            }
-                        }
+                        badge = { Badge { Text("3") } }
                     ) {
                         IconButton(onClick = onNavigateToNotifications) {
                             Icon(
@@ -104,11 +110,7 @@ fun StudentDashboardScreen(
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
-
                     }
-                    // Add this inside the TopAppBar actions block
-// after the notification bell
-
                     IconButton(onClick = onNavigateToProfile) {
                         Icon(
                             imageVector = Icons.Filled.Person,
@@ -173,7 +175,7 @@ fun StudentDashboardScreen(
                         text = "Something went wrong.\nPlease try again.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -196,7 +198,7 @@ private fun DashboardContent(
             .padding(paddingValues),
         contentPadding = PaddingValues(bottom = 88.dp)
     ) {
-        // Welcome header
+        // Welcome card
         item {
             Card(
                 modifier = Modifier
@@ -204,9 +206,10 @@ private fun DashboardContent(
                     .padding(16.dp),
                 shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor =
+                        MaterialTheme.colorScheme.primaryContainer
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -219,13 +222,14 @@ private fun DashboardContent(
                         Text(
                             text = "Welcome back,",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                .copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme
+                                .onPrimaryContainer.copy(alpha = 0.7f)
                         )
                         Text(
                             text = data.userName,
                             style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            color = MaterialTheme.colorScheme
+                                .onPrimaryContainer,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -278,7 +282,7 @@ private fun DashboardContent(
             }
         }
 
-        // Upcoming bookings section
+        // Upcoming bookings
         item {
             Spacer(modifier = Modifier.height(24.dp))
             SectionHeader(
@@ -302,10 +306,13 @@ private fun DashboardContent(
                     )
                 ) {
                     Text(
-                        text = "No upcoming bookings",
+                        text = "No upcoming bookings.\nTap + to create one!",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(24.dp)
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp)
                     )
                 }
             } else {
@@ -323,7 +330,7 @@ private fun DashboardContent(
             }
         }
 
-        // Recent activity section
+        // Recent activity
         item {
             Spacer(modifier = Modifier.height(24.dp))
             SectionHeader(
@@ -342,15 +349,15 @@ private fun DashboardContent(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     data.recentActivities.forEachIndexed { index, activity ->
                         ActivityItem(activity = activity)
                         if (index < data.recentActivities.lastIndex) {
                             Divider(
-                                color = MaterialTheme.colorScheme.outlineVariant
-                                    .copy(alpha = 0.5f),
+                                color = MaterialTheme.colorScheme
+                                    .outlineVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.padding(vertical = 4.dp)
                             )
                         }
@@ -359,8 +366,6 @@ private fun DashboardContent(
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }

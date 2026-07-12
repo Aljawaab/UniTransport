@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,20 +17,16 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,15 +57,18 @@ import com.example.unitransport.features.auth.model.UserRole
 fun LoginScreen(
     onNavigateToDashboard: (UserRole) -> Unit = {},
     onNavigateToForgotPassword: () -> Unit = {},
+    onNavigateToRegister: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val loginState by viewModel.loginState.collectAsState()
     val focusManager = LocalFocusManager.current
     val isLoading = loginState is UiState.Loading
 
-    LaunchedEffect(loginState) {
+    LaunchedEffect(key1 = loginState) {
         if (loginState is UiState.Success) {
-            onNavigateToDashboard((loginState as UiState.Success<UserRole>).data)
+            onNavigateToDashboard(
+                (loginState as UiState.Success<UserRole>).data
+            )
         }
     }
 
@@ -85,7 +83,7 @@ fun LoginScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(modifier = Modifier.height(80.dp))
 
             // Logo and title
             Icon(
@@ -129,9 +127,9 @@ fun LoginScreen(
                 },
                 isError = viewModel.emailError != null,
                 supportingText = {
-                    if (viewModel.emailError != null) {
+                    viewModel.emailError?.let {
                         Text(
-                            text = viewModel.emailError!!,
+                            text = it,
                             color = MaterialTheme.colorScheme.error
                         )
                     }
@@ -141,7 +139,9 @@ fun LoginScreen(
                     imeAction = ImeAction.Next
                 ),
                 keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    onNext = {
+                        focusManager.moveFocus(FocusDirection.Down)
+                    }
                 ),
                 singleLine = true,
                 enabled = !isLoading,
@@ -164,16 +164,15 @@ fun LoginScreen(
                     )
                 },
                 trailingIcon = {
-                    IconButton(onClick = viewModel::togglePasswordVisibility) {
+                    IconButton(
+                        onClick = viewModel::togglePasswordVisibility
+                    ) {
                         Icon(
                             imageVector = if (viewModel.passwordVisible)
                                 Icons.Filled.VisibilityOff
                             else
                                 Icons.Filled.Visibility,
-                            contentDescription = if (viewModel.passwordVisible)
-                                "Hide password"
-                            else
-                                "Show password",
+                            contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -184,9 +183,9 @@ fun LoginScreen(
                     PasswordVisualTransformation(),
                 isError = viewModel.passwordError != null,
                 supportingText = {
-                    if (viewModel.passwordError != null) {
+                    viewModel.passwordError?.let {
                         Text(
-                            text = viewModel.passwordError!!,
+                            text = it,
                             color = MaterialTheme.colorScheme.error
                         )
                     }
@@ -207,59 +206,6 @@ fun LoginScreen(
                 shape = MaterialTheme.shapes.medium
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Role selector
-            Box(modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = viewModel.selectedRole.displayName,
-                    onValueChange = {},
-                    label = { Text("I am a...") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Filled.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = viewModel::toggleRoleDropdown) {
-                            Icon(
-                                imageVector = if (viewModel.roleDropdownExpanded)
-                                    Icons.Filled.ArrowDropUp
-                                else
-                                    Icons.Filled.ArrowDropDown,
-                                contentDescription = "Select role"
-                            )
-                        }
-                    },
-                    readOnly = true,
-                    enabled = !isLoading,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                DropdownMenu(
-                    expanded = viewModel.roleDropdownExpanded,
-                    onDismissRequest = viewModel::dismissRoleDropdown,
-                    modifier = Modifier.fillMaxWidth(0.9f)
-                ) {
-                    UserRole.entries.forEach { role ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = role.displayName,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            },
-                            onClick = { viewModel.onRoleSelected(role) }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             // Forgot password
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -274,7 +220,7 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Login button
             Button(
@@ -316,11 +262,46 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // App version
+            // Divider
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Register link
+            Text(
+                text = "Don't have an account?",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = onNavigateToRegister,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = MaterialTheme.shapes.medium,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Text(
+                    text = "Create Account",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = "UniTransport v1.0.0",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+                    .copy(alpha = 0.5f)
             )
 
             Spacer(modifier = Modifier.height(24.dp))

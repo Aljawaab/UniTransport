@@ -18,27 +18,21 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor() : ViewModel() {
 
-    // Form fields
     var email by mutableStateOf("")
         private set
     var password by mutableStateOf("")
         private set
-    var selectedRole by mutableStateOf(UserRole.STUDENT)
-        private set
     var passwordVisible by mutableStateOf(false)
         private set
-    var roleDropdownExpanded by mutableStateOf(false)
-        private set
-
-    // Validation errors
     var emailError by mutableStateOf<String?>(null)
         private set
     var passwordError by mutableStateOf<String?>(null)
         private set
 
-    // Login state
-    private val _loginState = MutableStateFlow<UiState<UserRole>>(UiState.Idle)
-    val loginState: StateFlow<UiState<UserRole>> = _loginState.asStateFlow()
+    private val _loginState =
+        MutableStateFlow<UiState<UserRole>>(UiState.Idle)
+    val loginState: StateFlow<UiState<UserRole>> =
+        _loginState.asStateFlow()
 
     fun onEmailChange(value: String) {
         email = value
@@ -50,34 +44,20 @@ class LoginViewModel @Inject constructor() : ViewModel() {
         passwordError = null
     }
 
-    fun onRoleSelected(role: UserRole) {
-        selectedRole = role
-        roleDropdownExpanded = false
-    }
-
     fun togglePasswordVisibility() {
         passwordVisible = !passwordVisible
     }
 
-    fun toggleRoleDropdown() {
-        roleDropdownExpanded = !roleDropdownExpanded
-    }
-
-    fun dismissRoleDropdown() {
-        roleDropdownExpanded = false
-    }
-
     private fun validate(): Boolean {
         var isValid = true
-
         if (email.isBlank()) {
             emailError = "Email is required"
             isValid = false
-        } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+        } else if (!android.util.Patterns.EMAIL_ADDRESS
+                .matcher(email).matches()) {
             emailError = "Enter a valid email address"
             isValid = false
         }
-
         if (password.isBlank()) {
             passwordError = "Password is required"
             isValid = false
@@ -85,19 +65,33 @@ class LoginViewModel @Inject constructor() : ViewModel() {
             passwordError = "Password must be at least 6 characters"
             isValid = false
         }
-
         return isValid
+    }
+
+    // Mock role detection by email prefix
+    // In Step 16 this becomes a Firestore lookup of user role
+    private fun detectRoleFromEmail(email: String): UserRole {
+        return when {
+            email.startsWith("driver") -> UserRole.DRIVER
+            email.startsWith("officer") -> UserRole.TRANSPORT_OFFICER
+            email.startsWith("admin") -> UserRole.ADMINISTRATOR
+            else -> UserRole.STUDENT
+        }
     }
 
     fun onLoginClick(onSuccess: (UserRole) -> Unit) {
         if (!validate()) return
-
         viewModelScope.launch {
             _loginState.value = UiState.Loading
-            // Simulate API call with mock delay
             delay(2000)
-            _loginState.value = UiState.Success(selectedRole)
-            onSuccess(selectedRole)
+            // Mock: detect role from email prefix for testing
+            // e.g. driver@test.com → Driver dashboard
+            // e.g. officer@test.com → Officer dashboard
+            // e.g. admin@test.com → Admin dashboard
+            // e.g. anything else → Booker dashboard
+            val role = detectRoleFromEmail(email.lowercase())
+            _loginState.value = UiState.Success(role)
+            onSuccess(role)
         }
     }
 

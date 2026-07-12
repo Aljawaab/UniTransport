@@ -17,6 +17,7 @@ import com.example.unitransport.features.admin.presentation.SystemLogsScreen
 import com.example.unitransport.features.admin.presentation.UserManagementScreen
 import com.example.unitransport.features.auth.model.UserRole
 import com.example.unitransport.features.auth.presentation.LoginScreen
+import com.example.unitransport.features.auth.presentation.RegisterScreen
 import com.example.unitransport.features.auth.presentation.SplashScreen
 import com.example.unitransport.features.bookings.model.Booking
 import com.example.unitransport.features.bookings.presentation.BookingConfirmationScreen
@@ -25,6 +26,7 @@ import com.example.unitransport.features.dashboard.presentation.MainScreen
 import com.example.unitransport.features.driver.presentation.DriverDashboardScreen
 import com.example.unitransport.features.driver.presentation.IssueReportScreen
 import com.example.unitransport.features.driver.presentation.TripDetailScreen
+import com.example.unitransport.features.notifications.presentation.NotificationsScreen
 import com.example.unitransport.features.officer.presentation.AssignmentScreen
 import com.example.unitransport.features.officer.presentation.LiveTrackingScreen
 import com.example.unitransport.features.officer.presentation.OfficerDashboardScreen
@@ -34,28 +36,33 @@ import com.example.unitransport.features.profile.presentation.ChangePasswordScre
 import com.example.unitransport.features.profile.presentation.EditProfileScreen
 import com.example.unitransport.features.profile.presentation.ProfileScreen
 import com.example.unitransport.features.vehicles.presentation.VehicleDetailScreen
+import com.example.unitransport.features.vehicles.presentation.VehicleListScreen
 
 @Composable
 fun AppNavHost(
     navController: NavHostController = rememberNavController()
 ) {
-    // Fixed: use mutableStateOf + getValue/setValue instead of bare var
     var confirmedBooking by remember { mutableStateOf(Booking()) }
 
     NavHost(
         navController = navController,
         startDestination = AppDestinations.SPLASH
     ) {
+
+        // ── Splash ──────────────────────────────────────────────
         composable(AppDestinations.SPLASH) {
             SplashScreen(
                 onNavigateToLogin = {
                     navController.navigate(AppDestinations.LOGIN) {
-                        popUpTo(AppDestinations.SPLASH) { inclusive = true }
+                        popUpTo(AppDestinations.SPLASH) {
+                            inclusive = true
+                        }
                     }
                 }
             )
         }
 
+        // ── Login ───────────────────────────────────────────────
         composable(AppDestinations.LOGIN) {
             LoginScreen(
                 onNavigateToDashboard = { role ->
@@ -66,14 +73,35 @@ fun AppNavHost(
                         else -> AppDestinations.DASHBOARD
                     }
                     navController.navigate(destination) {
-                        popUpTo(AppDestinations.LOGIN) { inclusive = true }
+                        popUpTo(AppDestinations.LOGIN) {
+                            inclusive = true
+                        }
                     }
                 },
-                onNavigateToForgotPassword = {}
+                onNavigateToForgotPassword = {},
+                onNavigateToRegister = {
+                    navController.navigate(AppDestinations.REGISTER)
+                }
             )
         }
 
-        // Student / Staff / Club
+        // ── Register ─────────────────────────────────────────────
+        composable(AppDestinations.REGISTER) {
+            RegisterScreen(
+                onNavigateToLogin = {
+                    navController.navigate(AppDestinations.LOGIN) {
+                        popUpTo(AppDestinations.REGISTER) {
+                            inclusive = true
+                        }
+                    }
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // ── Booker Dashboard (Student / Staff / Club) ────────────
         composable(AppDestinations.DASHBOARD) {
             MainScreen(
                 onNavigateToCreateBooking = {
@@ -95,7 +123,7 @@ fun AppNavHost(
             )
         }
 
-        // Vehicle Detail
+        // ── Vehicle Detail ───────────────────────────────────────
         composable(
             route = AppDestinations.VEHICLE_DETAIL,
             arguments = listOf(
@@ -113,7 +141,7 @@ fun AppNavHost(
             )
         }
 
-        // Create Booking
+        // ── Create Booking ───────────────────────────────────────
         composable(AppDestinations.CREATE_BOOKING) {
             CreateBookingScreen(
                 onNavigateBack = { navController.popBackStack() },
@@ -128,7 +156,7 @@ fun AppNavHost(
             )
         }
 
-        // Booking Confirmation
+        // ── Booking Confirmation ─────────────────────────────────
         composable("booking_confirmation") {
             BookingConfirmationScreen(
                 booking = confirmedBooking,
@@ -149,7 +177,7 @@ fun AppNavHost(
             )
         }
 
-        // Profile
+        // ── Profile ──────────────────────────────────────────────
         composable(AppDestinations.PROFILE) {
             ProfileScreen(
                 onNavigateToEditProfile = {
@@ -184,7 +212,25 @@ fun AppNavHost(
             )
         }
 
-        // Driver
+        // ── Notifications (shared) ───────────────────────────────
+        composable(AppDestinations.NOTIFICATIONS) {
+            NotificationsScreen(
+                onNavigateToBooking = {}
+            )
+        }
+
+        // ── Vehicle List (shared — Admin uses it too) ────────────
+        composable(AppDestinations.VEHICLE_LIST) {
+            VehicleListScreen(
+                onNavigateToDetail = { vehicleId ->
+                    navController.navigate(
+                        AppDestinations.vehicleDetail(vehicleId)
+                    )
+                }
+            )
+        }
+
+        // ── Driver ───────────────────────────────────────────────
         composable("driver_dashboard") {
             DriverDashboardScreen(
                 onNavigateToTripDetail = { tripId ->
@@ -230,7 +276,7 @@ fun AppNavHost(
             )
         }
 
-        // Officer
+        // ── Transport Officer ────────────────────────────────────
         composable("officer_dashboard") {
             OfficerDashboardScreen(
                 onNavigateToPendingRequests = {
@@ -294,7 +340,7 @@ fun AppNavHost(
             )
         }
 
-        // Admin
+        // ── Administrator ────────────────────────────────────────
         composable("admin_dashboard") {
             AdminDashboardScreen(
                 onNavigateToUsers = {
@@ -334,26 +380,6 @@ fun AppNavHost(
             SystemLogsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
-        }
-
-        // Notifications (shared)
-        composable(AppDestinations.NOTIFICATIONS) {
-            com.example.unitransport.features.notifications.presentation
-                .NotificationsScreen(
-                    onNavigateToBooking = {}
-                )
-        }
-
-        // Vehicle List (shared — Admin uses it too)
-        composable(AppDestinations.VEHICLE_LIST) {
-            com.example.unitransport.features.vehicles.presentation
-                .VehicleListScreen(
-                    onNavigateToDetail = { vehicleId ->
-                        navController.navigate(
-                            AppDestinations.vehicleDetail(vehicleId)
-                        )
-                    }
-                )
         }
     }
 }

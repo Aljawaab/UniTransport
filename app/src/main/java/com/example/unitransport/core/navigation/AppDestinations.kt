@@ -4,6 +4,7 @@ object AppDestinations {
     const val SPLASH = "splash"
     const val ONBOARDING = "onboarding"
     const val LOGIN = "login"
+    const val REGISTER = "register"
     const val DASHBOARD = "dashboard"
     const val VEHICLE_LIST = "vehicle_list"
     const val VEHICLE_DETAIL = "vehicle_detail/{vehicleId}"
