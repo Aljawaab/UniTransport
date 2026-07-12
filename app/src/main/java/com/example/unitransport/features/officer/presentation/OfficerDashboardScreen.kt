@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.LocationOn
@@ -64,6 +65,7 @@ fun OfficerDashboardScreen(
     onNavigateToLiveTracking: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToDriverRatings: () -> Unit = {},
     viewModel: OfficerViewModel = hiltViewModel()
 ) {
     val statsState by viewModel.statsState.collectAsState()
@@ -196,6 +198,29 @@ fun OfficerDashboardScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Live Track",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+
+                    // Add a third button in the quick actions row
+                    Button(
+                        onClick = onNavigateToDriverRatings,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = StatusPending
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Ratings",
                             style = MaterialTheme.typography.labelLarge
                         )
                     }

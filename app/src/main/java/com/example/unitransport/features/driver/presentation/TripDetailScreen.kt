@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
@@ -69,6 +70,7 @@ fun TripDetailScreen(
     tripId: String,
     onNavigateBack: () -> Unit = {},
     onNavigateToIssueReport: (String) -> Unit = {},
+    onNavigateToRatePassengers: () -> Unit = {},
     viewModel: DriverViewModel = hiltViewModel()
 ) {
     val tripState by viewModel.selectedTrip.collectAsState()
@@ -132,6 +134,9 @@ fun TripDetailScreen(
                     onCompleteTrip = { viewModel.completeTrip(state.data.id) },
                     onReportIssue = {
                         onNavigateToIssueReport(state.data.id)
+                    },
+                    onNavigateToRatePassengers = {
+                        onNavigateToRatePassengers()
                     }
                 )
             }
@@ -166,7 +171,8 @@ private fun TripDetailContent(
     onToggleLocation: () -> Unit,
     onStartTrip: () -> Unit,
     onCompleteTrip: () -> Unit,
-    onReportIssue: () -> Unit
+    onReportIssue: () -> Unit,
+    onNavigateToRatePassengers: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -603,6 +609,34 @@ private fun TripDetailContent(
                         Text(
                             text = "Report Vehicle Issue",
                             style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+
+                // Add inside the action buttons section
+// after TripStatus.COMPLETED case
+
+                if (trip.status == TripStatus.COMPLETED) {
+                    Button(
+                        onClick = onNavigateToRatePassengers,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = StatusPending
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Rate Passengers",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }

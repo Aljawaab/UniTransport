@@ -37,6 +37,9 @@ import com.example.unitransport.features.profile.presentation.EditProfileScreen
 import com.example.unitransport.features.profile.presentation.ProfileScreen
 import com.example.unitransport.features.vehicles.presentation.VehicleDetailScreen
 import com.example.unitransport.features.vehicles.presentation.VehicleListScreen
+import com.example.unitransport.features.driver.model.RatingType
+import com.example.unitransport.features.driver.presentation.RatingScreen
+import com.example.unitransport.features.officer.presentation.DriverRatingsScreen
 
 @Composable
 fun AppNavHost(
@@ -162,17 +165,20 @@ fun AppNavHost(
                 booking = confirmedBooking,
                 onNavigateToDashboard = {
                     navController.navigate(AppDestinations.DASHBOARD) {
-                        popUpTo(AppDestinations.DASHBOARD) {
-                            inclusive = true
-                        }
+                        popUpTo(AppDestinations.DASHBOARD) { inclusive = true }
                     }
                 },
                 onNavigateToBookingHistory = {
                     navController.navigate(AppDestinations.DASHBOARD) {
-                        popUpTo(AppDestinations.DASHBOARD) {
-                            inclusive = true
-                        }
+                        popUpTo(AppDestinations.DASHBOARD) { inclusive = true }
                     }
+                },
+                onNavigateToRateDriver = {
+                    navController.navigate(
+                        "rate_driver/${confirmedBooking.id}" +
+                                "/${confirmedBooking.id}" +
+                                "/John Kamau/D001"
+                    )
                 }
             )
         }
@@ -258,6 +264,11 @@ fun AppNavHost(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToIssueReport = { id ->
                     navController.navigate("issue_report/$id")
+                },
+                onNavigateToRatePassengers = {
+                    navController.navigate(
+                        "rate_passengers/$tripId/$tripId"
+                    )
                 }
             )
         }
@@ -284,6 +295,9 @@ fun AppNavHost(
                 },
                 onNavigateToLiveTracking = {
                     navController.navigate("live_tracking")
+                },
+                onNavigateToDriverRatings = {
+                    navController.navigate("driver_ratings")
                 },
                 onNavigateToNotifications = {
                     navController.navigate(AppDestinations.NOTIFICATIONS)
@@ -378,6 +392,67 @@ fun AppNavHost(
 
         composable("system_logs") {
             SystemLogsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Rate Driver (Booker rates driver after trip)
+        composable(
+            route = "rate_driver/{tripId}/{bookingId}/{targetName}/{targetId}",
+            arguments = listOf(
+                navArgument("tripId") { type = NavType.StringType },
+                navArgument("bookingId") { type = NavType.StringType },
+                navArgument("targetName") { type = NavType.StringType },
+                navArgument("targetId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val tripId = backStackEntry.arguments
+                ?.getString("tripId") ?: ""
+            val bookingId = backStackEntry.arguments
+                ?.getString("bookingId") ?: ""
+            val targetName = backStackEntry.arguments
+                ?.getString("targetName") ?: ""
+            val targetId = backStackEntry.arguments
+                ?.getString("targetId") ?: ""
+            RatingScreen(
+                tripId = tripId,
+                bookingId = bookingId,
+                targetName = targetName,
+                targetId = targetId,
+                raterName = "Alex Mwangi",
+                raterRole = "Student",
+                ratingType = RatingType.BOOKER_RATES_DRIVER,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+// Rate Passengers (Driver rates passengers after trip)
+        composable(
+            route = "rate_passengers/{tripId}/{bookingId}",
+            arguments = listOf(
+                navArgument("tripId") { type = NavType.StringType },
+                navArgument("bookingId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val tripId = backStackEntry.arguments
+                ?.getString("tripId") ?: ""
+            val bookingId = backStackEntry.arguments
+                ?.getString("bookingId") ?: ""
+            RatingScreen(
+                tripId = tripId,
+                bookingId = bookingId,
+                targetName = "Trip Passengers",
+                targetId = bookingId,
+                raterName = "John Kamau",
+                raterRole = "Driver",
+                ratingType = RatingType.DRIVER_RATES_PASSENGERS,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+// Driver Ratings (Officer view)
+        composable("driver_ratings") {
+            DriverRatingsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
