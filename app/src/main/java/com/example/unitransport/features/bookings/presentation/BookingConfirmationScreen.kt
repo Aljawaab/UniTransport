@@ -42,8 +42,7 @@ import com.example.unitransport.features.bookings.model.Booking
 fun BookingConfirmationScreen(
     booking: Booking,
     onNavigateToDashboard: () -> Unit = {},
-    onNavigateToBookingHistory: () -> Unit = {},
-    onNavigateToRateDriver: () -> Unit = {}
+    onNavigateToBookingHistory: () -> Unit = {}
 ) {
     val scale = remember { Animatable(0f) }
     val alpha = remember { Animatable(0f) }
@@ -175,29 +174,6 @@ fun BookingConfirmationScreen(
             ) {
                 Text(
                     text = "View My Bookings",
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
-
-            // Add after the existing buttons
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedButton(
-                onClick = onNavigateToRateDriver,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .alpha(alpha.value),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Star,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Rate Your Driver",
                     style = MaterialTheme.typography.labelLarge
                 )
             }

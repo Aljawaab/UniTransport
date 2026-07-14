@@ -1,6 +1,8 @@
 package com.example.unitransport.core.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,21 +17,23 @@ import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.draw.clip
 import com.example.unitransport.core.ui.theme.StatusApproved
 import com.example.unitransport.core.ui.theme.StatusMaintenance
 import com.example.unitransport.core.ui.theme.StatusPending
@@ -37,10 +41,12 @@ import com.example.unitransport.core.ui.theme.StatusRejected
 import com.example.unitransport.features.bookings.model.Booking
 import com.example.unitransport.features.bookings.model.BookingRequestStatus
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookingCard(
     booking: Booking,
     onClick: () -> Unit,
+    onRateDriver: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -102,7 +108,8 @@ fun BookingCard(
 
             Spacer(modifier = Modifier.height(12.dp))
             Divider(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.outlineVariant
+                    .copy(alpha = 0.5f)
             )
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -133,7 +140,8 @@ fun BookingCard(
             if (booking.vehicleAssigned != null) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Divider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.outlineVariant
+                        .copy(alpha = 0.5f)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -152,6 +160,38 @@ fun BookingCard(
                             color = MaterialTheme.colorScheme.secondary
                         )
                     }
+                }
+            }
+
+            // Rate Driver button — ONLY for completed bookings
+            if (booking.status == BookingRequestStatus.COMPLETED
+                && onRateDriver != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Divider(
+                    color = MaterialTheme.colorScheme.outlineVariant
+                        .copy(alpha = 0.5f)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = onRateDriver,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor =
+                            StatusPending.copy(alpha = 0.15f),
+                        contentColor = StatusPending
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Rate Your Driver",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
         }
@@ -189,7 +229,7 @@ fun BookingStatusChip(status: BookingRequestStatus) {
         BookingRequestStatus.REJECTED -> StatusRejected to "Rejected"
         BookingRequestStatus.ACTIVE -> StatusMaintenance to "Active"
         BookingRequestStatus.COMPLETED ->
-            MaterialTheme.colorScheme.onSurfaceVariant to "Completed"
+            StatusApproved to "Completed"
         BookingRequestStatus.CANCELLED -> StatusRejected to "Cancelled"
     }
     Box(

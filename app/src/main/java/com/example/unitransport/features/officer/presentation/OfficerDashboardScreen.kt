@@ -58,6 +58,7 @@ import com.example.unitransport.features.driver.model.TripStatus
 import com.example.unitransport.features.officer.model.ActiveDriver
 import com.example.unitransport.features.officer.model.OfficerStats
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OfficerDashboardScreen(
@@ -152,57 +153,64 @@ fun OfficerDashboardScreen(
             }
 
             // Quick actions
+            // Replace the existing quick actions item with this
             item {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Button(
-                        onClick = onNavigateToPendingRequests,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(52.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.PendingActions,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Requests",
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                    Button(
-                        onClick = onNavigateToLiveTracking,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(52.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Live Track",
-                            style = MaterialTheme.typography.labelLarge
-                        )
+                        Button(
+                            onClick = onNavigateToPendingRequests,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor =
+                                    MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PendingActions,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Requests",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                        Button(
+                            onClick = onNavigateToLiveTracking,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor =
+                                    MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.LocationOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Live Track",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
                     }
 
-                    // Add a third button in the quick actions row
+                    // Driver Ratings button — full width below
                     Button(
                         onClick = onNavigateToDriverRatings,
                         modifier = Modifier
@@ -220,12 +228,13 @@ fun OfficerDashboardScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Ratings",
+                            text = "View Driver Ratings",
                             style = MaterialTheme.typography.labelLarge
                         )
                     }
                 }
             }
+
 
             // Active drivers section
             item {

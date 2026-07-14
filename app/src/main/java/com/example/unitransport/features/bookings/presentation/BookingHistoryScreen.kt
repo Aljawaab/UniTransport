@@ -30,11 +30,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.unitransport.core.base.UiState
 import com.example.unitransport.core.ui.components.BookingCard
+import com.example.unitransport.features.bookings.model.BookingRequestStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookingHistoryScreen(
     onNavigateToDetail: (String) -> Unit = {},
+    onNavigateToRateDriver: (
+        bookingId: String,
+        driverName: String,
+        driverId: String
+    ) -> Unit = { _, _, _ -> },
     viewModel: BookingHistoryViewModel = hiltViewModel()
 ) {
     val bookingsState by viewModel.bookingsState.collectAsState()
@@ -138,7 +144,18 @@ fun BookingHistoryScreen(
                             items(filtered) { booking ->
                                 BookingCard(
                                     booking = booking,
-                                    onClick = { onNavigateToDetail(booking.id) }
+                                    onClick = { onNavigateToDetail(booking.id) },
+                                    onRateDriver = if (
+                                        booking.status == BookingRequestStatus.COMPLETED
+                                    ) {
+                                        {
+                                            onNavigateToRateDriver(
+                                                booking.id,
+                                                booking.driverAssigned ?: "Driver",
+                                                "D001" // In Step 16 this comes from Firestore
+                                            )
+                                        }
+                                    } else null
                                 )
                             }
                         }

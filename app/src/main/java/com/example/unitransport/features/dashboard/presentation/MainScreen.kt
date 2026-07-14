@@ -24,7 +24,12 @@ fun MainScreen(
     onNavigateToCreateBooking: () -> Unit = {},
     onNavigateToVehicleDetail: (String) -> Unit = {},
     onNavigateToBookingDetail: (String) -> Unit = {},
-    onNavigateToProfile: () -> Unit = {}
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToRateDriver: (
+        bookingId: String,
+        driverName: String,
+        driverId: String
+    ) -> Unit = { _, _, _ -> }
 ) {
     val bottomNavController: NavHostController = rememberNavController()
 
@@ -67,7 +72,12 @@ fun MainScreen(
             }
 
             composable(AppDestinations.BOOKING_HISTORY) {
-                BookingHistoryScreen(onNavigateToDetail = {})
+                BookingHistoryScreen(
+                    onNavigateToDetail = {},
+                    onNavigateToRateDriver = { bookingId, driverName, driverId ->
+                        onNavigateToRateDriver(bookingId, driverName, driverId)
+                    }
+                )
             }
 
             composable(AppDestinations.CALENDAR) {

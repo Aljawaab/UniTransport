@@ -186,7 +186,7 @@ fun DriverDashboardScreen(
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
                                     Text(
-                                        text = "John Kamau",
+                                        text = "Jamil Daulini",
                                         style = MaterialTheme.typography
                                             .titleMedium,
                                         color = MaterialTheme.colorScheme

@@ -52,6 +52,8 @@ import com.example.unitransport.core.ui.theme.StatusApproved
 import com.example.unitransport.core.ui.theme.StatusRejected
 import com.example.unitransport.features.officer.model.DriverOption
 import com.example.unitransport.features.vehicles.model.Vehicle
+import com.example.unitransport.core.ui.components.StarRatingDisplay
+import com.example.unitransport.features.driver.model.mockDriverRatings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -316,6 +318,11 @@ private fun AssignDriverCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    // Find this driver's rating summary
+    val ratingSummary = mockDriverRatings.find {
+        it.driverId == driver.id
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -331,81 +338,128 @@ private fun AssignDriverCard(
             )
             .background(
                 when {
-                    isSelected -> MaterialTheme.colorScheme.primaryContainer
+                    isSelected ->
+                        MaterialTheme.colorScheme.primaryContainer
                     !driver.isAvailable ->
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                        MaterialTheme.colorScheme.surface
+                            .copy(alpha = 0.5f)
                     else -> MaterialTheme.colorScheme.surface
                 }
             )
             .clickable(enabled = driver.isAvailable) { onClick() }
             .padding(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Filled.Person,
-                contentDescription = null,
-                tint = if (!driver.isAvailable)
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                else if (isSelected)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(32.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = driver.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (!driver.isAvailable)
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    else
-                        MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = driver.licenseNumber,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                        .copy(alpha = if (!driver.isAvailable) 0.5f else 1f)
-                )
-                if (!driver.isAvailable && driver.currentAssignment != null) {
-                    Text(
-                        text = "Busy: ${driver.currentAssignment}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = StatusRejected
-                    )
-                }
-            }
-            if (isSelected) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Filled.CheckCircle,
+                    imageVector = Icons.Filled.Person,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
+                    tint = if (!driver.isAvailable)
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                            .copy(alpha = 0.5f)
+                    else if (isSelected)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(32.dp)
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .clip(MaterialTheme.shapes.extraSmall)
-                        .background(
-                            if (driver.isAvailable)
-                                StatusApproved.copy(alpha = 0.12f)
-                            else
-                                StatusRejected.copy(alpha = 0.12f)
-                        )
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (driver.isAvailable)
-                            "Available"
+                        text = driver.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (!driver.isAvailable)
+                            MaterialTheme.colorScheme.onSurface
+                                .copy(alpha = 0.5f)
                         else
-                            "Busy",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (driver.isAvailable)
-                            StatusApproved
-                        else
-                            StatusRejected
+                            MaterialTheme.colorScheme.onSurface
                     )
+                    Text(
+                        text = driver.licenseNumber,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme
+                            .onSurfaceVariant
+                            .copy(
+                                alpha = if (!driver.isAvailable)
+                                    0.5f else 1f
+                            )
+                    )
+
+                    // Show rating stars
+                    if (ratingSummary != null &&
+                        ratingSummary.totalRatings > 0) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            StarRatingDisplay(
+                                rating = ratingSummary.averageRating,
+                                starSize = 12.dp
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${"%.1f".format(
+                                    ratingSummary.averageRating
+                                )} (${ratingSummary.totalRatings})",
+                                style = MaterialTheme.typography
+                                    .labelSmall,
+                                color = MaterialTheme.colorScheme
+                                    .onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "No ratings yet",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme
+                                .onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+
+                    if (!driver.isAvailable &&
+                        driver.currentAssignment != null) {
+                        Text(
+                            text = "Busy: ${driver.currentAssignment}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = StatusRejected
+                        )
+                    }
+                }
+
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(
+                                if (driver.isAvailable)
+                                    StatusApproved.copy(alpha = 0.12f)
+                                else
+                                    StatusRejected.copy(alpha = 0.12f)
+                            )
+                            .padding(
+                                horizontal = 8.dp,
+                                vertical = 3.dp
+                            )
+                    ) {
+                        Text(
+                            text = if (driver.isAvailable)
+                                "Available"
+                            else "Busy",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (driver.isAvailable)
+                                StatusApproved
+                            else
+                                StatusRejected
+                        )
+                    }
                 }
             }
         }

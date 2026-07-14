@@ -21,13 +21,17 @@ import com.example.unitransport.features.auth.presentation.RegisterScreen
 import com.example.unitransport.features.auth.presentation.SplashScreen
 import com.example.unitransport.features.bookings.model.Booking
 import com.example.unitransport.features.bookings.presentation.BookingConfirmationScreen
+import com.example.unitransport.features.bookings.presentation.BookingHistoryScreen
 import com.example.unitransport.features.bookings.presentation.CreateBookingScreen
 import com.example.unitransport.features.dashboard.presentation.MainScreen
+import com.example.unitransport.features.driver.model.RatingType
 import com.example.unitransport.features.driver.presentation.DriverDashboardScreen
 import com.example.unitransport.features.driver.presentation.IssueReportScreen
+import com.example.unitransport.features.driver.presentation.RatingScreen
 import com.example.unitransport.features.driver.presentation.TripDetailScreen
 import com.example.unitransport.features.notifications.presentation.NotificationsScreen
 import com.example.unitransport.features.officer.presentation.AssignmentScreen
+import com.example.unitransport.features.officer.presentation.DriverRatingsScreen
 import com.example.unitransport.features.officer.presentation.LiveTrackingScreen
 import com.example.unitransport.features.officer.presentation.OfficerDashboardScreen
 import com.example.unitransport.features.officer.presentation.PendingRequestsScreen
@@ -37,9 +41,6 @@ import com.example.unitransport.features.profile.presentation.EditProfileScreen
 import com.example.unitransport.features.profile.presentation.ProfileScreen
 import com.example.unitransport.features.vehicles.presentation.VehicleDetailScreen
 import com.example.unitransport.features.vehicles.presentation.VehicleListScreen
-import com.example.unitransport.features.driver.model.RatingType
-import com.example.unitransport.features.driver.presentation.RatingScreen
-import com.example.unitransport.features.officer.presentation.DriverRatingsScreen
 
 @Composable
 fun AppNavHost(
@@ -52,7 +53,7 @@ fun AppNavHost(
         startDestination = AppDestinations.SPLASH
     ) {
 
-        // ── Splash ──────────────────────────────────────────────
+        // ── Splash ───────────────────────────────────────────────
         composable(AppDestinations.SPLASH) {
             SplashScreen(
                 onNavigateToLogin = {
@@ -65,7 +66,7 @@ fun AppNavHost(
             )
         }
 
-        // ── Login ───────────────────────────────────────────────
+        // ── Login ────────────────────────────────────────────────
         composable(AppDestinations.LOGIN) {
             LoginScreen(
                 onNavigateToDashboard = { role ->
@@ -104,9 +105,12 @@ fun AppNavHost(
             )
         }
 
-        // ── Booker Dashboard (Student / Staff / Club) ────────────
+        // ── Booker Dashboard (Student / Staff / Club) ─────────────
+        // Role defaults to STUDENT here
+        // In Step 16 Firebase will provide the real role
         composable(AppDestinations.DASHBOARD) {
             MainScreen(
+                role = UserRole.STUDENT,
                 onNavigateToCreateBooking = {
                     navController.navigate(AppDestinations.CREATE_BOOKING)
                 },
@@ -122,11 +126,17 @@ fun AppNavHost(
                 },
                 onNavigateToProfile = {
                     navController.navigate(AppDestinations.PROFILE)
+                },
+                onNavigateToRateDriver = { bookingId, driverName, driverId ->
+                    navController.navigate(
+                        "rate_driver/$bookingId/$bookingId" +
+                                "/$driverName/$driverId"
+                    )
                 }
             )
         }
 
-        // ── Vehicle Detail ───────────────────────────────────────
+        // ── Vehicle Detail ────────────────────────────────────────
         composable(
             route = AppDestinations.VEHICLE_DETAIL,
             arguments = listOf(
@@ -144,7 +154,7 @@ fun AppNavHost(
             )
         }
 
-        // ── Create Booking ───────────────────────────────────────
+        // ── Create Booking ────────────────────────────────────────
         composable(AppDestinations.CREATE_BOOKING) {
             CreateBookingScreen(
                 onNavigateBack = { navController.popBackStack() },
@@ -159,31 +169,43 @@ fun AppNavHost(
             )
         }
 
-        // ── Booking Confirmation ─────────────────────────────────
+        // ── Booking Confirmation ──────────────────────────────────
+        // No rate button here — rating happens in Booking History
         composable("booking_confirmation") {
             BookingConfirmationScreen(
                 booking = confirmedBooking,
                 onNavigateToDashboard = {
                     navController.navigate(AppDestinations.DASHBOARD) {
-                        popUpTo(AppDestinations.DASHBOARD) { inclusive = true }
+                        popUpTo(AppDestinations.DASHBOARD) {
+                            inclusive = true
+                        }
                     }
                 },
                 onNavigateToBookingHistory = {
                     navController.navigate(AppDestinations.DASHBOARD) {
-                        popUpTo(AppDestinations.DASHBOARD) { inclusive = true }
+                        popUpTo(AppDestinations.DASHBOARD) {
+                            inclusive = true
+                        }
                     }
-                },
-                onNavigateToRateDriver = {
+                }
+            )
+        }
+
+        // ── Booking History ───────────────────────────────────────
+        // Rate button shows only on COMPLETED bookings
+        composable(AppDestinations.BOOKING_HISTORY) {
+            BookingHistoryScreen(
+                onNavigateToDetail = {},
+                onNavigateToRateDriver = { bookingId, driverName, driverId ->
                     navController.navigate(
-                        "rate_driver/${confirmedBooking.id}" +
-                                "/${confirmedBooking.id}" +
-                                "/John Kamau/D001"
+                        "rate_driver/$bookingId/$bookingId" +
+                                "/$driverName/$driverId"
                     )
                 }
             )
         }
 
-        // ── Profile ──────────────────────────────────────────────
+        // ── Profile ───────────────────────────────────────────────
         composable(AppDestinations.PROFILE) {
             ProfileScreen(
                 onNavigateToEditProfile = {
@@ -218,14 +240,14 @@ fun AppNavHost(
             )
         }
 
-        // ── Notifications (shared) ───────────────────────────────
+        // ── Notifications (shared) ────────────────────────────────
         composable(AppDestinations.NOTIFICATIONS) {
             NotificationsScreen(
                 onNavigateToBooking = {}
             )
         }
 
-        // ── Vehicle List (shared — Admin uses it too) ────────────
+        // ── Vehicle List (shared) ─────────────────────────────────
         composable(AppDestinations.VEHICLE_LIST) {
             VehicleListScreen(
                 onNavigateToDetail = { vehicleId ->
@@ -236,7 +258,7 @@ fun AppNavHost(
             )
         }
 
-        // ── Driver ───────────────────────────────────────────────
+        // ── Driver ────────────────────────────────────────────────
         composable("driver_dashboard") {
             DriverDashboardScreen(
                 onNavigateToTripDetail = { tripId ->
@@ -287,7 +309,7 @@ fun AppNavHost(
             )
         }
 
-        // ── Transport Officer ────────────────────────────────────
+        // ── Transport Officer ─────────────────────────────────────
         composable("officer_dashboard") {
             OfficerDashboardScreen(
                 onNavigateToPendingRequests = {
@@ -354,7 +376,14 @@ fun AppNavHost(
             )
         }
 
-        // ── Administrator ────────────────────────────────────────
+        // Driver Ratings — Officer sees all driver ratings
+        composable("driver_ratings") {
+            DriverRatingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // ── Administrator ─────────────────────────────────────────
         composable("admin_dashboard") {
             AdminDashboardScreen(
                 onNavigateToUsers = {
@@ -396,9 +425,12 @@ fun AppNavHost(
             )
         }
 
-        // Rate Driver (Booker rates driver after trip)
+        // ── Rating Screens ────────────────────────────────────────
+
+        // Booker rates driver (from Booking History completed trips)
         composable(
-            route = "rate_driver/{tripId}/{bookingId}/{targetName}/{targetId}",
+            route = "rate_driver/{tripId}/{bookingId}" +
+                    "/{targetName}/{targetId}",
             arguments = listOf(
                 navArgument("tripId") { type = NavType.StringType },
                 navArgument("bookingId") { type = NavType.StringType },
@@ -426,7 +458,7 @@ fun AppNavHost(
             )
         }
 
-// Rate Passengers (Driver rates passengers after trip)
+        // Driver rates passengers (from completed Trip Detail)
         composable(
             route = "rate_passengers/{tripId}/{bookingId}",
             arguments = listOf(
@@ -446,13 +478,6 @@ fun AppNavHost(
                 raterName = "John Kamau",
                 raterRole = "Driver",
                 ratingType = RatingType.DRIVER_RATES_PASSENGERS,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-// Driver Ratings (Officer view)
-        composable("driver_ratings") {
-            DriverRatingsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
