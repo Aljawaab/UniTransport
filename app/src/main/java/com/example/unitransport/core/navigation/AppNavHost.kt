@@ -41,6 +41,7 @@ import com.example.unitransport.features.profile.presentation.EditProfileScreen
 import com.example.unitransport.features.profile.presentation.ProfileScreen
 import com.example.unitransport.features.vehicles.presentation.VehicleDetailScreen
 import com.example.unitransport.features.vehicles.presentation.VehicleListScreen
+import com.example.unitransport.features.profile.presentation.SettingsScreen
 
 @Composable
 fun AppNavHost(
@@ -236,6 +237,12 @@ fun AppNavHost(
 
         composable("change_password") {
             ChangePasswordScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(AppDestinations.SETTINGS) {
+            SettingsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

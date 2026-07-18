@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.unitransport.core.ui.theme.ThemeState
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor() : ViewModel() {
@@ -65,8 +66,6 @@ class ProfileViewModel @Inject constructor() : ViewModel() {
         _passwordState.asStateFlow()
 
     // Settings
-    var isDarkMode by mutableStateOf(false)
-        private set
     var notificationsEnabled by mutableStateOf(true)
         private set
     var emailNotifications by mutableStateOf(true)
@@ -105,7 +104,13 @@ class ProfileViewModel @Inject constructor() : ViewModel() {
     fun toggleConfirmPasswordVisibility() {
         confirmPasswordVisible = !confirmPasswordVisible
     }
-    fun toggleDarkMode() { isDarkMode = !isDarkMode }
+    var isDarkMode by mutableStateOf(ThemeState.isDarkMode)
+        private set
+
+    fun toggleDarkMode() {
+        ThemeState.isDarkMode = !ThemeState.isDarkMode
+        isDarkMode = ThemeState.isDarkMode
+    }
     fun toggleNotifications() {
         notificationsEnabled = !notificationsEnabled
     }
