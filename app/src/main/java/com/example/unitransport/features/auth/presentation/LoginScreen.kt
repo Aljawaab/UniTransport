@@ -23,12 +23,10 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +51,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.unitransport.core.base.UiState
 import com.example.unitransport.features.auth.model.UserRole
+import androidx.compose.runtime.remember
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,23 +67,34 @@ fun LoginScreen(
     val loginState by viewModel.loginState.collectAsState()
     val focusManager = LocalFocusManager.current
     val isLoading = loginState is UiState.Loading
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(key1 = loginState) {
-        if (loginState is UiState.Success) {
-            onNavigateToDashboard(
-                (loginState as UiState.Success<UserRole>).data
-            )
+        when (loginState) {
+            is UiState.Success -> {
+                onNavigateToDashboard(
+                    (loginState as UiState.Success<UserRole>).data
+                )
+            }
+            is UiState.Error -> {
+                snackbarHostState.showSnackbar(
+                    (loginState as UiState.Error).message
+                )
+                viewModel.resetState()
+            }
+            else -> Unit
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .padding(paddingValues)
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

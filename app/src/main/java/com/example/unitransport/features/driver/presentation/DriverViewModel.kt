@@ -14,6 +14,7 @@ import com.example.unitransport.features.driver.model.TripStatus
 import com.example.unitransport.features.driver.model.VehicleIssue
 import com.example.unitransport.features.driver.model.mockTrips
 import com.example.unitransport.features.driver.model.simulatedRouteCoordinates
+import com.example.unitransport.data.repository.LocationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -24,7 +25,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class DriverViewModel @Inject constructor() : ViewModel() {
+class DriverViewModel @Inject constructor(
+    private val locationRepository: LocationRepository
+) : ViewModel() {
 
     // Trips state
     private val _tripsState =
@@ -97,18 +100,21 @@ class DriverViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    // Driver ID — in production comes from Firebase Auth
+    private val driverId = "D001"
+
     fun toggleLocationSharing() {
         isLocationSharing = !isLocationSharing
         if (isLocationSharing) {
-            startLocationSimulation()
+            startLocationUpdates()
         } else {
-            stopLocationSimulation()
+            stopLocationUpdates()
         }
     }
 
-    private fun startLocationSimulation() {
-        locationJob?.cancel() // Cancel any existing job first
+    private fun startLocationUpdates() {
         routeIndex = 0
+        locationJob?.cancel()
         locationJob = viewModelScope.launch {
             try {
                 while (isLocationSharing) {
@@ -116,24 +122,35 @@ class DriverViewModel @Inject constructor() : ViewModel() {
                         routeIndex = 0
                     }
                     val coordinate = simulatedRouteCoordinates[routeIndex]
-                    _liveLocation.value = coordinate.copy(
+                    val location = coordinate.copy(
                         isSharing = true,
                         timestamp = getCurrentTime(routeIndex)
                     )
+                    _liveLocation.value = location
+
+                    // Push to Firebase Realtime Database
+                    locationRepository.updateDriverLocation(
+                        driverId = driverId,
+                        location = location
+                    )
+
                     routeIndex++
-                    delay(3000)
+                    kotlinx.coroutines.delay(3000)
                 }
             } catch (e: Exception) {
-                // Coroutine cancelled cleanly on navigation
+                // Coroutine cancelled cleanly
             }
         }
     }
 
-    private fun stopLocationSimulation() {
+    private fun stopLocationUpdates() {
         locationJob?.cancel()
-        _liveLocation.value = _liveLocation.value?.copy(
-            isSharing = false
-        )
+        viewModelScope.launch {
+            locationRepository.stopSharing(driverId)
+            _liveLocation.value = _liveLocation.value?.copy(
+                isSharing = false
+            )
+        }
     }
 
     private fun getCurrentTime(index: Int): String {
@@ -166,7 +183,7 @@ class DriverViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             _tripUpdateState.value = UiState.Loading
             delay(1000)
-            stopLocationSimulation()
+            stopLocationUpdates()
             isLocationSharing = false
             val index = allTrips.indexOfFirst { it.id == tripId }
             if (index != -1) {

@@ -6,9 +6,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unitransport.core.base.UiState
+import com.example.unitransport.data.repository.AuthRepository
 import com.example.unitransport.features.auth.model.UserRole
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +16,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class LoginViewModel @Inject constructor() : ViewModel() {
+class LoginViewModel @Inject constructor(
+    private val authRepository: AuthRepository
+) : ViewModel() {
 
     var email by mutableStateOf("")
         private set
@@ -35,13 +37,11 @@ class LoginViewModel @Inject constructor() : ViewModel() {
         _loginState.asStateFlow()
 
     fun onEmailChange(value: String) {
-        email = value
-        emailError = null
+        email = value; emailError = null
     }
 
     fun onPasswordChange(value: String) {
-        password = value
-        passwordError = null
+        password = value; passwordError = null
     }
 
     fun togglePasswordVisibility() {
@@ -68,34 +68,33 @@ class LoginViewModel @Inject constructor() : ViewModel() {
         return isValid
     }
 
-    // Mock role detection by email prefix
-    // In Step 16 this becomes a Firestore lookup of user role
-    private fun detectRoleFromEmail(email: String): UserRole {
-        return when {
-            email.startsWith("driver") -> UserRole.DRIVER
-            email.startsWith("officer") -> UserRole.TRANSPORT_OFFICER
-            email.startsWith("admin") -> UserRole.ADMINISTRATOR
-            else -> UserRole.STUDENT
-        }
-    }
-
     fun onLoginClick(onSuccess: (UserRole) -> Unit) {
         if (!validate()) return
         viewModelScope.launch {
             _loginState.value = UiState.Loading
-            delay(2000)
-            // Mock: detect role from email prefix for testing
-            // e.g. driver@test.com → Driver dashboard
-            // e.g. officer@test.com → Officer dashboard
-            // e.g. admin@test.com → Admin dashboard
-            // e.g. anything else → Booker dashboard
-            val role = detectRoleFromEmail(email.lowercase())
-            _loginState.value = UiState.Success(role)
-            onSuccess(role)
+            // Real Firebase Authentication call
+            val result = authRepository.login(email, password)
+            result.fold(
+                onSuccess = { role ->
+                    _loginState.value = UiState.Success(role)
+                    onSuccess(role)
+                },
+                onFailure = { error ->
+                    _loginState.value = UiState.Error(
+                        when {
+                            error.message?.contains("password") == true ->
+                                "Incorrect password. Please try again."
+                            error.message?.contains("user") == true ->
+                                "No account found with this email."
+                            error.message?.contains("network") == true ->
+                                "No internet connection. Please check your network."
+                            else -> "Login failed. Please try again."
+                        }
+                    )
+                }
+            )
         }
     }
 
-    fun resetState() {
-        _loginState.value = UiState.Idle
-    }
+    fun resetState() { _loginState.value = UiState.Idle }
 }

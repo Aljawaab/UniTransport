@@ -6,11 +6,10 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unitransport.core.base.UiState
+import com.example.unitransport.data.repository.BookingRepository
 import com.example.unitransport.features.bookings.model.Booking
 import com.example.unitransport.features.bookings.model.BookingRequestStatus
-import com.example.unitransport.features.bookings.model.mockBookings
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +17,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class BookingHistoryViewModel @Inject constructor() : ViewModel() {
+class BookingHistoryViewModel @Inject constructor(
+    private val bookingRepository: BookingRepository
+) : ViewModel() {
 
     private val _bookingsState =
         MutableStateFlow<UiState<List<Booking>>>(UiState.Loading)
@@ -28,21 +29,25 @@ class BookingHistoryViewModel @Inject constructor() : ViewModel() {
     var selectedTabIndex by mutableIntStateOf(0)
         private set
 
-    private val allBookings = mockBookings
-
     val tabs = listOf("All", "Pending", "Approved", "Completed", "Rejected")
 
     fun loadBookings() {
         viewModelScope.launch {
             _bookingsState.value = UiState.Loading
-            delay(800)
-            _bookingsState.value = UiState.Success(allBookings)
+            try {
+                // Real-time listener from Firestore
+                bookingRepository.getUserBookings().collect { bookings ->
+                    _bookingsState.value = UiState.Success(bookings)
+                }
+            } catch (e: Exception) {
+                _bookingsState.value = UiState.Error(
+                    e.message ?: "Failed to load bookings"
+                )
+            }
         }
     }
 
-    fun onTabSelected(index: Int) {
-        selectedTabIndex = index
-    }
+    fun onTabSelected(index: Int) { selectedTabIndex = index }
 
     fun getFilteredBookings(bookings: List<Booking>): List<Booking> {
         return when (selectedTabIndex) {

@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.unitransport.core.base.UiState
 import com.example.unitransport.features.bookings.model.Booking
 import com.example.unitransport.features.bookings.model.BookingRequestStatus
+import com.example.unitransport.data.repository.BookingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class CreateBookingViewModel @Inject constructor() : ViewModel() {
+class CreateBookingViewModel @Inject constructor(
+    private val bookingRepository: BookingRepository
+) : ViewModel() {
 
     // Step tracker
     var currentStep by mutableIntStateOf(0)
@@ -149,9 +152,8 @@ class CreateBookingViewModel @Inject constructor() : ViewModel() {
     fun submitBooking(onSuccess: (Booking) -> Unit) {
         viewModelScope.launch {
             _submitState.value = UiState.Loading
-            delay(2000)
             val booking = Booking(
-                id = "BK${System.currentTimeMillis()}",
+                id = "",
                 destination = destination,
                 purpose = purpose,
                 passengerCount = passengerCount,
@@ -162,10 +164,21 @@ class CreateBookingViewModel @Inject constructor() : ViewModel() {
                 vehiclePreference = vehiclePreference,
                 additionalNotes = additionalNotes,
                 status = BookingRequestStatus.PENDING,
-                createdAt = "2026-06-27"
+                createdAt = System.currentTimeMillis().toString()
             )
-            _submitState.value = UiState.Success(booking)
-            onSuccess(booking)
+            val result = bookingRepository.createBooking(booking)
+            result.fold(
+                onSuccess = { bookingId ->
+                    val created = booking.copy(id = bookingId)
+                    _submitState.value = UiState.Success(created)
+                    onSuccess(created)
+                },
+                onFailure = { error ->
+                    _submitState.value = UiState.Error(
+                        error.message ?: "Failed to create booking"
+                    )
+                }
+            )
         }
     }
 

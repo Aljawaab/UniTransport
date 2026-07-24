@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -17,19 +18,6 @@ android {
         versionName = "1.0"
     }
 
-    bundle {
-        language {
-            enableSplit = false
-        }
-    }
-
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-
-    // ADD THIS BLOCK
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -45,9 +33,7 @@ android {
         }
     }
 
-    buildFeatures {
-        compose = true
-    }
+    buildFeatures { compose = true }
 
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
@@ -58,11 +44,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
+    kotlinOptions { jvmTarget = "17" }
 }
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -82,5 +66,14 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation("androidx.appcompat:appcompat:1.6.1")
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.database)
+    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.storage)
+
     debugImplementation(libs.androidx.ui.tooling)
 }
