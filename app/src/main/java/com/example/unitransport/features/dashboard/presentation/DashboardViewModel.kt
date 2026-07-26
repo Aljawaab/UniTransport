@@ -3,6 +3,8 @@ package com.example.unitransport.features.dashboard.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unitransport.core.base.UiState
+import com.example.unitransport.data.repository.AuthRepository
+import com.example.unitransport.data.repository.BookingRepository
 import com.example.unitransport.features.auth.model.UserRole
 import com.example.unitransport.features.dashboard.model.ActivityType
 import com.example.unitransport.features.dashboard.model.BookingStatus
@@ -11,7 +13,6 @@ import com.example.unitransport.features.dashboard.model.DashboardUiData
 import com.example.unitransport.features.dashboard.model.QuickBooking
 import com.example.unitransport.features.dashboard.model.RecentActivity
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,83 +20,103 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class DashboardViewModel @Inject constructor() : ViewModel() {
+class DashboardViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+    private val bookingRepository: BookingRepository
+) : ViewModel() {
 
-    private val _dashboardState = MutableStateFlow<UiState<DashboardUiData>>(UiState.Loading)
-    val dashboardState: StateFlow<UiState<DashboardUiData>> = _dashboardState.asStateFlow()
+    private val _dashboardState =
+        MutableStateFlow<UiState<DashboardUiData>>(UiState.Loading)
+    val dashboardState: StateFlow<UiState<DashboardUiData>> =
+        _dashboardState.asStateFlow()
 
     fun loadDashboard(role: UserRole = UserRole.STUDENT) {
         viewModelScope.launch {
             _dashboardState.value = UiState.Loading
-            delay(1000) // Simulate API call
-            _dashboardState.value = UiState.Success(getMockData(role))
+            try {
+                // Get current user profile from Firestore
+                val profile = authRepository.getCurrentUserProfile()
+                val userName = profile["fullName"] as? String
+                    ?: "User"
+
+                // Listen to real bookings from Firestore
+                bookingRepository.getUserBookings().collect { bookings ->
+                    val pending = bookings.filter {
+                        it.status.name == "PENDING"
+                    }
+                    val approved = bookings.filter {
+                        it.status.name == "APPROVED"
+                    }
+
+                    // Build upcoming bookings (pending + approved)
+                    val upcoming = (pending + approved)
+                        .take(5)
+                        .map { booking ->
+                            QuickBooking(
+                                id = booking.id,
+                                destination = booking.destination,
+                                date = booking.departureDate,
+                                time = booking.departureTime,
+                                status = try {
+                                    BookingStatus.valueOf(
+                                        booking.status.name
+                                    )
+                                } catch (e: Exception) {
+                                    BookingStatus.PENDING
+                                },
+                                vehicleType = booking.vehiclePreference
+                            )
+                        }
+
+                    // Build recent activities from latest bookings
+                    val activities = bookings
+                        .take(4)
+                        .map { booking ->
+                            RecentActivity(
+                                id = booking.id,
+                                title = when (booking.status.name) {
+                                    "APPROVED" -> "Booking Approved"
+                                    "REJECTED" -> "Booking Rejected"
+                                    "COMPLETED" -> "Trip Completed"
+                                    else -> "Booking Created"
+                                },
+                                description = "Trip to ${booking.destination}",
+                                time = booking.createdAt,
+                                type = when (booking.status.name) {
+                                    "APPROVED" ->
+                                        ActivityType.BOOKING_APPROVED
+                                    "REJECTED" ->
+                                        ActivityType.BOOKING_REJECTED
+                                    "COMPLETED" ->
+                                        ActivityType.TRIP_COMPLETED
+                                    else ->
+                                        ActivityType.BOOKING_CREATED
+                                }
+                            )
+                        }
+
+                    _dashboardState.value = UiState.Success(
+                        DashboardUiData(
+                            userName = userName,
+                            role = role,
+                            stats = DashboardStats(
+                                totalBookings = bookings.size,
+                                pendingBookings = pending.size,
+                                approvedBookings = approved.size,
+                                activeTrips = bookings.count {
+                                    it.status.name == "ACTIVE"
+                                }
+                            ),
+                            upcomingBookings = upcoming,
+                            recentActivities = activities
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                _dashboardState.value = UiState.Error(
+                    e.message ?: "Failed to load dashboard"
+                )
+            }
         }
     }
-
-    private fun getMockData(role: UserRole) = DashboardUiData(
-        userName = "Alex Mwangi",
-        role = role,
-        stats = DashboardStats(
-            totalBookings = 12,
-            pendingBookings = 2,
-            approvedBookings = 8,
-            activeTrips = 1
-        ),
-        upcomingBookings = listOf(
-            QuickBooking(
-                id = "BK001",
-                destination = "Engineering Block",
-                date = "Today",
-                time = "2:00 PM",
-                status = BookingStatus.APPROVED,
-                vehicleType = "Bus"
-            ),
-            QuickBooking(
-                id = "BK002",
-                destination = "Main Campus Library",
-                date = "Tomorrow",
-                time = "9:00 AM",
-                status = BookingStatus.PENDING,
-                vehicleType = "Van"
-            ),
-            QuickBooking(
-                id = "BK003",
-                destination = "Sports Complex",
-                date = "Jun 28",
-                time = "3:30 PM",
-                status = BookingStatus.APPROVED,
-                vehicleType = "Bus"
-            )
-        ),
-        recentActivities = listOf(
-            RecentActivity(
-                id = "A001",
-                title = "Booking Approved",
-                description = "Your trip to Engineering Block was approved",
-                time = "2 hrs ago",
-                type = ActivityType.BOOKING_APPROVED
-            ),
-            RecentActivity(
-                id = "A002",
-                title = "Booking Created",
-                description = "New booking to Main Campus Library",
-                time = "5 hrs ago",
-                type = ActivityType.BOOKING_CREATED
-            ),
-            RecentActivity(
-                id = "A003",
-                title = "Trip Completed",
-                description = "Trip to Administration Block completed",
-                time = "Yesterday",
-                type = ActivityType.TRIP_COMPLETED
-            ),
-            RecentActivity(
-                id = "A004",
-                title = "Booking Rejected",
-                description = "Trip to Off-campus venue was rejected",
-                time = "2 days ago",
-                type = ActivityType.BOOKING_REJECTED
-            )
-        )
-    )
 }

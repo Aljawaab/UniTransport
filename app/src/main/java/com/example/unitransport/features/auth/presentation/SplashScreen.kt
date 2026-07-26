@@ -2,7 +2,6 @@ package com.example.unitransport.features.auth.presentation
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOutBack
-import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -32,64 +31,59 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.unitransport.core.ui.theme.PrimaryBlue
 import com.example.unitransport.core.ui.theme.PrimaryBlueDark
+import com.example.unitransport.data.repository.AuthRepository
+import com.example.unitransport.features.auth.model.UserRole
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit = {},
+    onNavigateToDashboard: (UserRole) -> Unit = {}
 ) {
     val logoScale = remember { Animatable(0f) }
     val logoAlpha = remember { Animatable(0f) }
     val titleAlpha = remember { Animatable(0f) }
     val taglineAlpha = remember { Animatable(0f) }
 
-    LaunchedEffect(Unit) {
-        // Logo fades and pops in
-        logoAlpha.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 400)
-        )
+    LaunchedEffect(key1 = Unit) {
+        // Animate splash
+        logoAlpha.animateTo(1f, animationSpec = tween(400))
         logoScale.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 600,
-                easing = EaseOutBack
-            )
+            1f,
+            animationSpec = tween(600, easing = EaseOutBack)
         )
-        // Title fades in
         delay(200)
-        titleAlpha.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 500)
-        )
-        // Tagline fades in
+        titleAlpha.animateTo(1f, animationSpec = tween(500))
         delay(200)
-        taglineAlpha.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 500)
-        )
-        // Wait then navigate
-        delay(1500)
-        onNavigateToLogin()
+        taglineAlpha.animateTo(1f, animationSpec = tween(500))
+        delay(1000)
+
+        // Check if user is already logged in
+        val authRepository = AuthRepository()
+        if (authRepository.isLoggedIn) {
+            val uid = authRepository.currentUserId ?: ""
+            val role = authRepository.getUserRole(uid)
+            onNavigateToDashboard(role)
+        } else {
+            onNavigateToLogin()
+        }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.verticalGradient(
+                Brush.verticalGradient(
                     colors = listOf(PrimaryBlue, PrimaryBlueDark)
                 )
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Main content
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(24.dp)
         ) {
-            // Logo circle
             Box(
                 modifier = Modifier
                     .size(120.dp)
@@ -97,7 +91,8 @@ fun SplashScreen(
                     .alpha(logoAlpha.value)
                     .clip(CircleShape)
                     .background(
-                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
+                        MaterialTheme.colorScheme.onPrimary
+                            .copy(alpha = 0.15f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -108,10 +103,7 @@ fun SplashScreen(
                     modifier = Modifier.size(64.dp)
                 )
             }
-
             Spacer(modifier = Modifier.height(32.dp))
-
-            // App name
             Text(
                 text = "UniTransport",
                 style = MaterialTheme.typography.headlineLarge,
@@ -119,20 +111,16 @@ fun SplashScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.alpha(titleAlpha.value)
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
-            // Tagline
             Text(
                 text = "University Transport Management",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                color = MaterialTheme.colorScheme.onPrimary
+                    .copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.alpha(taglineAlpha.value)
             )
         }
-
-        // Version at bottom
         Text(
             text = "Version 1.0.0",
             style = MaterialTheme.typography.labelSmall,

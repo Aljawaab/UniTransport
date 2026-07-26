@@ -59,9 +59,18 @@ fun AppNavHost(
             SplashScreen(
                 onNavigateToLogin = {
                     navController.navigate(AppDestinations.LOGIN) {
-                        popUpTo(AppDestinations.SPLASH) {
-                            inclusive = true
-                        }
+                        popUpTo(AppDestinations.SPLASH) { inclusive = true }
+                    }
+                },
+                onNavigateToDashboard = { role ->
+                    val destination = when (role) {
+                        UserRole.DRIVER -> "driver_dashboard"
+                        UserRole.TRANSPORT_OFFICER -> "officer_dashboard"
+                        UserRole.ADMINISTRATOR -> "admin_dashboard"
+                        else -> AppDestinations.DASHBOARD
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(AppDestinations.SPLASH) { inclusive = true }
                     }
                 }
             )

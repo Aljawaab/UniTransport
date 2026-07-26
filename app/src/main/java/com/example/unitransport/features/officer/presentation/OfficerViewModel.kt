@@ -25,9 +25,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.unitransport.data.repository.BookingRepository
+import com.example.unitransport.data.repository.VehicleRepository
 
 @HiltViewModel
-class OfficerViewModel @Inject constructor() : ViewModel() {
+class OfficerViewModel @Inject constructor(
+    private val bookingRepository: BookingRepository,
+    private val vehicleRepository: VehicleRepository
+) : ViewModel() {
 
     // Dashboard state
     private val _statsState =
@@ -133,8 +138,25 @@ class OfficerViewModel @Inject constructor() : ViewModel() {
     fun loadAllRequests() {
         viewModelScope.launch {
             _requestsState.value = UiState.Loading
-            delay(600)
-            _requestsState.value = UiState.Success(allRequests.toList())
+            try {
+                bookingRepository.getAllBookings().collect { bookings ->
+                    val requests = bookings.map { booking ->
+                        BookingRequest(
+                            booking = booking,
+                            requesterName = "University Member",
+                            requesterDepartment = "Department",
+                            requesterPhone = "+254 700 000 000"
+                        )
+                    }
+                    _requestsState.value = UiState.Success(requests)
+                    allRequests.clear()
+                    allRequests.addAll(requests)
+                }
+            } catch (e: Exception) {
+                _requestsState.value = UiState.Error(
+                    e.message ?: "Failed to load requests"
+                )
+            }
         }
     }
 
@@ -162,12 +184,19 @@ class OfficerViewModel @Inject constructor() : ViewModel() {
     fun loadAvailableVehicles() {
         viewModelScope.launch {
             _availableVehicles.value = UiState.Loading
-            delay(500)
-            _availableVehicles.value = UiState.Success(
-                VehicleMockData.vehicles.filter {
-                    it.status == VehicleStatus.AVAILABLE
+            try {
+                vehicleRepository.getVehicles().collect { vehicles ->
+                    _availableVehicles.value = UiState.Success(
+                        vehicles.filter {
+                            it.status == VehicleStatus.AVAILABLE
+                        }
+                    )
                 }
-            )
+            } catch (e: Exception) {
+                _availableVehicles.value = UiState.Error(
+                    e.message ?: "Failed to load vehicles"
+                )
+            }
         }
     }
 
@@ -182,21 +211,22 @@ class OfficerViewModel @Inject constructor() : ViewModel() {
     fun approveRequest(bookingId: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _approveState.value = UiState.Loading
-            delay(1500)
-            val index = allRequests.indexOfFirst {
-                it.booking.id == bookingId
-            }
-            if (index != -1) {
-                val updated = allRequests[index].copy(
-                    booking = allRequests[index].booking.copy(
-                        status = BookingRequestStatus.APPROVED
+            val result = bookingRepository.updateBookingStatus(
+                bookingId = bookingId,
+                status = BookingRequestStatus.APPROVED
+            )
+            result.fold(
+                onSuccess = {
+                    _approveState.value = UiState.Success(Unit)
+                    loadAllRequests()
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _approveState.value = UiState.Error(
+                        error.message ?: "Failed to approve"
                     )
-                )
-                allRequests[index] = updated
-                _selectedRequest.value = UiState.Success(updated)
-            }
-            _approveState.value = UiState.Success(Unit)
-            onSuccess()
+                }
+            )
         }
     }
 
@@ -225,22 +255,22 @@ class OfficerViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             showRejectionDialog = false
             _rejectState.value = UiState.Loading
-            delay(1500)
-            val index = allRequests.indexOfFirst {
-                it.booking.id == currentRejectionBookingId
-            }
-            if (index != -1) {
-                val updated = allRequests[index].copy(
-                    booking = allRequests[index].booking.copy(
-                        status = BookingRequestStatus.REJECTED
-                    ),
-                    rejectionReason = rejectionReason
-                )
-                allRequests[index] = updated
-                _selectedRequest.value = UiState.Success(updated)
-            }
-            _rejectState.value = UiState.Success(Unit)
-            onSuccess()
+            val result = bookingRepository.updateBookingStatus(
+                bookingId = currentRejectionBookingId,
+                status = BookingRequestStatus.REJECTED
+            )
+            result.fold(
+                onSuccess = {
+                    _rejectState.value = UiState.Success(Unit)
+                    loadAllRequests()
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _rejectState.value = UiState.Error(
+                        error.message ?: "Failed to reject"
+                    )
+                }
+            )
         }
     }
 
