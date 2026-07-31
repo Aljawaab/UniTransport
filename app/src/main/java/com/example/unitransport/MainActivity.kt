@@ -7,9 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.example.unitransport.core.navigation.AppNavHost
 import com.example.unitransport.core.ui.theme.AppTheme
@@ -22,7 +19,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            // Reads ThemeState.isDarkMode — recomposes when it changes
             AppTheme(darkTheme = ThemeState.isDarkMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

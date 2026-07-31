@@ -34,21 +34,25 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _dashboardState.value = UiState.Loading
             try {
-                // Get current user profile from Firestore
+                // Step 1: Get real user profile from Firestore
                 val profile = authRepository.getCurrentUserProfile()
                 val userName = profile["fullName"] as? String
                     ?: "User"
 
-                // Listen to real bookings from Firestore
+                // Step 2: Listen to real bookings
                 bookingRepository.getUserBookings().collect { bookings ->
+
                     val pending = bookings.filter {
                         it.status.name == "PENDING"
                     }
                     val approved = bookings.filter {
                         it.status.name == "APPROVED"
                     }
+                    val active = bookings.filter {
+                        it.status.name == "ACTIVE"
+                    }
 
-                    // Build upcoming bookings (pending + approved)
+                    // Build upcoming from real bookings
                     val upcoming = (pending + approved)
                         .take(5)
                         .map { booking ->
@@ -68,7 +72,7 @@ class DashboardViewModel @Inject constructor(
                             )
                         }
 
-                    // Build recent activities from latest bookings
+                    // Build activity from real bookings
                     val activities = bookings
                         .take(4)
                         .map { booking ->
@@ -78,10 +82,13 @@ class DashboardViewModel @Inject constructor(
                                     "APPROVED" -> "Booking Approved"
                                     "REJECTED" -> "Booking Rejected"
                                     "COMPLETED" -> "Trip Completed"
+                                    "ACTIVE" -> "Trip Started"
                                     else -> "Booking Created"
                                 },
-                                description = "Trip to ${booking.destination}",
-                                time = booking.createdAt,
+                                description = "Trip to " +
+                                        booking.destination,
+                                time = booking.createdAt
+                                    .take(10),
                                 type = when (booking.status.name) {
                                     "APPROVED" ->
                                         ActivityType.BOOKING_APPROVED
@@ -89,6 +96,8 @@ class DashboardViewModel @Inject constructor(
                                         ActivityType.BOOKING_REJECTED
                                     "COMPLETED" ->
                                         ActivityType.TRIP_COMPLETED
+                                    "ACTIVE" ->
+                                        ActivityType.TRIP_STARTED
                                     else ->
                                         ActivityType.BOOKING_CREATED
                                 }
@@ -103,9 +112,7 @@ class DashboardViewModel @Inject constructor(
                                 totalBookings = bookings.size,
                                 pendingBookings = pending.size,
                                 approvedBookings = approved.size,
-                                activeTrips = bookings.count {
-                                    it.status.name == "ACTIVE"
-                                }
+                                activeTrips = active.size
                             ),
                             upcomingBookings = upcoming,
                             recentActivities = activities

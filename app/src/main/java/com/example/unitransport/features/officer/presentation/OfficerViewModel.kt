@@ -97,7 +97,7 @@ class OfficerViewModel @Inject constructor(
         private set
 
     // In-memory mutable list
-    private val allRequests = mockBookingRequests.toMutableList()
+    private val allRequests = mutableListOf<BookingRequest>()
 
     fun loadDashboard() {
         viewModelScope.launch {

@@ -76,4 +76,6 @@ dependencies {
     implementation(libs.firebase.storage)
 
     debugImplementation(libs.androidx.ui.tooling)
+    implementation(libs.material)
+
 }

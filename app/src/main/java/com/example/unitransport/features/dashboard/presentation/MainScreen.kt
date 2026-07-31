@@ -59,7 +59,7 @@ fun MainScreen(
                             AppDestinations.NOTIFICATIONS
                         ) { launchSingleTop = true }
                     },
-                    onNavigateToProfile = onNavigateToProfile
+                    onNavigateToProfile = onNavigateToProfile  // ← THIS must be here
                 )
             }
 

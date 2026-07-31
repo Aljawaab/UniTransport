@@ -42,6 +42,7 @@ import com.example.unitransport.features.profile.presentation.ProfileScreen
 import com.example.unitransport.features.vehicles.presentation.VehicleDetailScreen
 import com.example.unitransport.features.vehicles.presentation.VehicleListScreen
 import com.example.unitransport.features.profile.presentation.SettingsScreen
+import com.example.unitransport.features.bookings.presentation.BookingDetailScreen
 
 @Composable
 fun AppNavHost(
@@ -212,6 +213,21 @@ fun AppNavHost(
                                 "/$driverName/$driverId"
                     )
                 }
+            )
+        }
+
+        // ── Booking Detail ────────────────────────────────────────
+        composable(
+            route = "booking_detail/{bookingId}",
+            arguments = listOf(
+                navArgument("bookingId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val bookingId =
+                backStackEntry.arguments?.getString("bookingId") ?: ""
+            BookingDetailScreen(
+                bookingId = bookingId,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

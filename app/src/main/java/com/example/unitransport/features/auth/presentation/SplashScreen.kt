@@ -31,9 +31,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.unitransport.core.ui.theme.PrimaryBlue
 import com.example.unitransport.core.ui.theme.PrimaryBlueDark
-import com.example.unitransport.data.repository.AuthRepository
 import com.example.unitransport.features.auth.model.UserRole
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun SplashScreen(
@@ -46,7 +48,7 @@ fun SplashScreen(
     val taglineAlpha = remember { Animatable(0f) }
 
     LaunchedEffect(key1 = Unit) {
-        // Animate splash
+        // Run animations
         logoAlpha.animateTo(1f, animationSpec = tween(400))
         logoScale.animateTo(
             1f,
@@ -58,17 +60,55 @@ fun SplashScreen(
         taglineAlpha.animateTo(1f, animationSpec = tween(500))
         delay(1000)
 
-        // Check if user is already logged in
-        val authRepository = AuthRepository()
-        if (authRepository.isLoggedIn) {
-            val uid = authRepository.currentUserId ?: ""
-            val role = authRepository.getUserRole(uid)
+        // Check Firebase session
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+
+        if (firebaseUser == null) {
+            // No session → go to login
+            onNavigateToLogin()
+            return@LaunchedEffect
+        }
+
+        // Reload user to confirm session is still valid
+        try {
+            firebaseUser.reload().await()
+        } catch (e: Exception) {
+            // Session expired → go to login
+            FirebaseAuth.getInstance().signOut()
+            onNavigateToLogin()
+            return@LaunchedEffect
+        }
+
+        // Session valid → get role from Firestore
+        try {
+            val doc = FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(firebaseUser.uid)
+                .get()
+                .await()
+
+            if (!doc.exists()) {
+                // User in Auth but not in Firestore → go to login
+                FirebaseAuth.getInstance().signOut()
+                onNavigateToLogin()
+                return@LaunchedEffect
+            }
+
+            val roleString = doc.getString("role") ?: "STUDENT"
+            val role = try {
+                UserRole.valueOf(roleString)
+            } catch (e: Exception) {
+                UserRole.STUDENT
+            }
             onNavigateToDashboard(role)
-        } else {
+
+        } catch (e: Exception) {
+            // Firestore error → go to login safely
             onNavigateToLogin()
         }
     }
 
+    // UI — same as before
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -124,7 +164,8 @@ fun SplashScreen(
         Text(
             text = "Version 1.0.0",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+            color = MaterialTheme.colorScheme.onPrimary
+                .copy(alpha = 0.5f),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 32.dp)
