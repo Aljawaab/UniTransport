@@ -11,6 +11,7 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import com.example.unitransport.data.repository.UserRepository
 import com.example.unitransport.data.repository.IssueReportRepository
+import com.example.unitransport.data.repository.RatingRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -43,4 +44,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideIssueReportRepository(): IssueReportRepository = IssueReportRepository()
+
+    @Provides
+    @Singleton
+    fun provideRatingRepository(): RatingRepository = RatingRepository()
 }

@@ -44,34 +44,64 @@ class AuthRepository @Inject constructor() {
         email: String,
         password: String,
         department: String,
-        role: UserRole
+        role: UserRole,
+        phone: String = ""
     ): Result<Unit> {
         return try {
-            val result = auth.createUserWithEmailAndPassword(
-                email, password
-            ).await()
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
             val uid = result.user?.uid
-                ?: return Result.failure(
-                    Exception("Registration failed: no user ID")
-                )
+                ?: return Result.failure(Exception("Registration failed: no user ID"))
 
-            // Save user profile to Firestore
             val userDoc = hashMapOf(
                 "uid" to uid,
                 "fullName" to fullName,
                 "email" to email,
+                "phone" to phone,
                 "department" to department,
                 "role" to role.name,
                 "isActive" to true,
                 "createdAt" to System.currentTimeMillis(),
                 "totalBookings" to 0
             )
+            firestore.collection("users").document(uid).set(userDoc).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
-            firestore.collection("users")
-                .document(uid)
-                .set(userDoc)
-                .await()
+    suspend fun updateProfile(
+        fullName: String,
+        phone: String,
+        department: String
+    ): Result<Unit> {
+        val uid = currentUserId ?: return Result.failure(Exception("Not logged in"))
+        return try {
+            val updates = hashMapOf<String, Any>(
+                "fullName" to fullName,
+                "phone" to phone,
+                "department" to department
+            )
+            firestore.collection("users").document(uid).update(updates).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
+    suspend fun changePassword(
+        currentPassword: String,
+        newPassword: String
+    ): Result<Unit> {
+        val user = auth.currentUser
+            ?: return Result.failure(Exception("Not logged in"))
+        val email = user.email
+            ?: return Result.failure(Exception("No email on account"))
+        return try {
+            val credential = com.google.firebase.auth.EmailAuthProvider
+                .getCredential(email, currentPassword)
+            user.reauthenticate(credential).await()
+            user.updatePassword(newPassword).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
