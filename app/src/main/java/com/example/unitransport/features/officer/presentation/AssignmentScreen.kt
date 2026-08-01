@@ -212,6 +212,7 @@ fun AssignmentScreen(
                                 bookingId = bookingId,
                                 vehicleReg = vehicle.registrationNumber,
                                 driverName = driver.name,
+                                driverId = driver.id,
                                 onSuccess = {}
                             )
                         }

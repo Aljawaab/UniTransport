@@ -14,7 +14,6 @@ import com.example.unitransport.features.officer.model.DriverOption
 import com.example.unitransport.features.officer.model.OfficerStats
 import com.example.unitransport.features.officer.model.availableDrivers
 import com.example.unitransport.features.officer.model.mockActiveDrivers
-import com.example.unitransport.features.officer.model.mockBookingRequests
 import com.example.unitransport.features.vehicles.model.Vehicle
 import com.example.unitransport.features.vehicles.model.VehicleMockData
 import com.example.unitransport.features.vehicles.model.VehicleStatus
@@ -24,14 +23,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import com.example.unitransport.data.repository.BookingRepository
 import com.example.unitransport.data.repository.VehicleRepository
+import com.example.unitransport.data.repository.UserRepository
+import com.example.unitransport.data.repository.LocationRepository
+import com.example.unitransport.features.driver.model.TripStatus
+import kotlinx.coroutines.flow.combine
 
 @HiltViewModel
 class OfficerViewModel @Inject constructor(
     private val bookingRepository: BookingRepository,
-    private val vehicleRepository: VehicleRepository
+    private val vehicleRepository: VehicleRepository,
+    private val userRepository: UserRepository,
+    private val locationRepository: LocationRepository
 ) : ViewModel() {
 
     // Dashboard state
@@ -141,11 +148,14 @@ class OfficerViewModel @Inject constructor(
             try {
                 bookingRepository.getAllBookings().collect { bookings ->
                     val requests = bookings.map { booking ->
+                        val requester = if (booking.userId.isNotBlank()) {
+                            userRepository.getUserById(booking.userId)
+                        } else null
                         BookingRequest(
                             booking = booking,
-                            requesterName = "University Member",
-                            requesterDepartment = "Department",
-                            requesterPhone = "+254 700 000 000"
+                            requesterName = requester?.fullName ?: "Unknown",
+                            requesterDepartment = requester?.department ?: "—",
+                            requesterPhone = requester?.phone ?: "—"
                         )
                     }
                     _requestsState.value = UiState.Success(requests)
@@ -163,12 +173,27 @@ class OfficerViewModel @Inject constructor(
     fun loadRequestById(bookingId: String) {
         viewModelScope.launch {
             _selectedRequest.value = UiState.Loading
-            delay(400)
-            val request = allRequests.find { it.booking.id == bookingId }
-            if (request != null) {
-                _selectedRequest.value = UiState.Success(request)
-            } else {
-                _selectedRequest.value = UiState.Error("Request not found")
+            try {
+                bookingRepository.getBookingById(bookingId).collect { booking ->
+                    if (booking != null) {
+                        val requester = if (booking.userId.isNotBlank()) {
+                            userRepository.getUserById(booking.userId)
+                        } else null
+                        val request = BookingRequest(
+                            booking = booking,
+                            requesterName = requester?.fullName ?: "Unknown",
+                            requesterDepartment = requester?.department ?: "—",
+                            requesterPhone = requester?.phone ?: "—"
+                        )
+                        _selectedRequest.value = UiState.Success(request)
+                    } else {
+                        _selectedRequest.value = UiState.Error("Request not found")
+                    }
+                }
+            } catch (e: Exception) {
+                _selectedRequest.value = UiState.Error(
+                    e.message ?: "Failed to load request"
+                )
             }
         }
     }
@@ -176,8 +201,56 @@ class OfficerViewModel @Inject constructor(
     fun loadActiveDrivers() {
         viewModelScope.launch {
             _activeDrivers.value = UiState.Loading
-            delay(600)
-            _activeDrivers.value = UiState.Success(mockActiveDrivers)
+            try {
+                val bookings = bookingRepository.getAllBookings().first()
+                val activeBookings = bookings.filter {
+                    it.status == BookingRequestStatus.ACTIVE && it.driverId != null
+                }
+
+                if (activeBookings.isEmpty()) {
+                    _activeDrivers.value = UiState.Success(emptyList())
+                    return@launch
+                }
+
+                // Pre-fetch driver + vehicle info once (doesn't change per GPS tick)
+                val driverInfo = activeBookings.map { booking ->
+                    val profile = userRepository.getUserById(booking.driverId!!)
+                    val vehicle = booking.vehicleAssigned?.let {
+                        vehicleRepository.getVehicleByRegistration(it)
+                    }
+                    Triple(booking, profile, vehicle)
+                }
+
+                val locationFlows = activeBookings.map { booking ->
+                    locationRepository.getDriverLocation(booking.driverId!!)
+                }
+
+                combine(locationFlows) { locations ->
+                    driverInfo.mapIndexed { index, (booking, profile, vehicle) ->
+                        ActiveDriver(
+                            id = booking.driverId!!,
+                            name = profile?.fullName ?: booking.driverAssigned ?: "Unknown",
+                            vehicleRegistration = booking.vehicleAssigned ?: "",
+                            vehicleMake = vehicle?.make ?: "",
+                            vehicleModel = vehicle?.model ?: "",
+                            tripDestination = booking.destination,
+                            tripId = booking.id,
+                            status = if (booking.tripStatus == "IN_PROGRESS")
+                                TripStatus.IN_PROGRESS
+                            else
+                                TripStatus.UPCOMING,
+                            liveLocation = locations[index],
+                            passengerCount = booking.passengerCount
+                        )
+                    }
+                }.collect { drivers ->
+                    _activeDrivers.value = UiState.Success(drivers)
+                }
+            } catch (e: Exception) {
+                _activeDrivers.value = UiState.Error(
+                    e.message ?: "Failed to load active drivers"
+                )
+            }
         }
     }
 
@@ -203,8 +276,29 @@ class OfficerViewModel @Inject constructor(
     fun loadAvailableDrivers() {
         viewModelScope.launch {
             _availableDrivers.value = UiState.Loading
-            delay(500)
-            _availableDrivers.value = UiState.Success(availableDrivers)
+            try {
+                val drivers = userRepository.getUsersByRole("DRIVER")
+                val allBookings = bookingRepository.getAllBookings().first()
+                val activeAssignments = allBookings
+                    .filter { it.status == BookingRequestStatus.ACTIVE }
+                val options = drivers.map { driver ->
+                    val assignment = activeAssignments.find {
+                        it.driverId == driver.uid
+                    }
+                    DriverOption(
+                        id = driver.uid,
+                        name = driver.fullName,
+                        licenseNumber = "N/A",
+                        isAvailable = assignment == null,
+                        currentAssignment = assignment?.destination
+                    )
+                }
+                _availableDrivers.value = UiState.Success(options)
+            } catch (e: Exception) {
+                _availableDrivers.value = UiState.Error(
+                    e.message ?: "Failed to load drivers"
+                )
+            }
         }
     }
 
@@ -278,26 +372,30 @@ class OfficerViewModel @Inject constructor(
         bookingId: String,
         vehicleReg: String,
         driverName: String,
+        driverId: String,
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
             _assignState.value = UiState.Loading
-            delay(1500)
-            val index = allRequests.indexOfFirst {
-                it.booking.id == bookingId
-            }
-            if (index != -1) {
-                val updated = allRequests[index].copy(
-                    booking = allRequests[index].booking.copy(
-                        vehicleAssigned = vehicleReg,
-                        driverAssigned = driverName
+            val result = bookingRepository.updateBookingStatus(
+                bookingId = bookingId,
+                status = BookingRequestStatus.ACTIVE,
+                vehicleAssigned = vehicleReg,
+                driverAssigned = driverName,
+                driverId = driverId
+            )
+            result.fold(
+                onSuccess = {
+                    _assignState.value = UiState.Success(Unit)
+                    loadAllRequests()
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _assignState.value = UiState.Error(
+                        error.message ?: "Failed to assign"
                     )
-                )
-                allRequests[index] = updated
-                _selectedRequest.value = UiState.Success(updated)
-            }
-            _assignState.value = UiState.Success(Unit)
-            onSuccess()
+                }
+            )
         }
     }
 

@@ -1,6 +1,7 @@
 package com.example.unitransport.features.bookings.model
 
 data class Booking(
+    val userId: String = "",
     val id: String = "",
     val destination: String = "",
     val purpose: String = "",
@@ -14,7 +15,9 @@ data class Booking(
     val status: BookingRequestStatus = BookingRequestStatus.PENDING,
     val createdAt: String = "",
     val vehicleAssigned: String? = null,
-    val driverAssigned: String? = null
+    val driverAssigned: String? = null,
+    val driverId: String? = null,
+    val tripStatus: String = "UPCOMING"
 )
 
 enum class BookingRequestStatus(val displayName: String) {

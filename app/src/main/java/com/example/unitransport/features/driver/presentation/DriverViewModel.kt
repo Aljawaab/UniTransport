@@ -6,62 +6,60 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unitransport.core.base.UiState
+import com.example.unitransport.data.repository.AuthRepository
+import com.example.unitransport.data.repository.BookingRepository
+import com.example.unitransport.data.repository.IssueReportRepository
+import com.example.unitransport.data.repository.LocationRepository
+import com.example.unitransport.data.repository.UserRepository
+import com.example.unitransport.data.repository.VehicleRepository
+import com.example.unitransport.features.bookings.model.Booking
+import com.example.unitransport.features.bookings.model.BookingRequestStatus
 import com.example.unitransport.features.driver.model.IssueCategory
 import com.example.unitransport.features.driver.model.IssueSeverity
 import com.example.unitransport.features.driver.model.LiveLocation
 import com.example.unitransport.features.driver.model.Trip
 import com.example.unitransport.features.driver.model.TripStatus
-import com.example.unitransport.features.driver.model.VehicleIssue
-import com.example.unitransport.features.driver.model.mockTrips
 import com.example.unitransport.features.driver.model.simulatedRouteCoordinates
-import com.example.unitransport.data.repository.LocationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.flow.firstOrNull
 
 @HiltViewModel
 class DriverViewModel @Inject constructor(
-    private val locationRepository: LocationRepository
+    private val locationRepository: LocationRepository,
+    private val bookingRepository: BookingRepository,
+    private val vehicleRepository: VehicleRepository,
+    private val userRepository: UserRepository,
+    private val issueReportRepository: IssueReportRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    // Trips state
     private val _tripsState =
         MutableStateFlow<UiState<List<Trip>>>(UiState.Loading)
-    val tripsState: StateFlow<UiState<List<Trip>>> =
-        _tripsState.asStateFlow()
+    val tripsState: StateFlow<UiState<List<Trip>>> = _tripsState.asStateFlow()
 
-    // Selected trip
     private val _selectedTrip =
         MutableStateFlow<UiState<Trip>>(UiState.Idle)
-    val selectedTrip: StateFlow<UiState<Trip>> =
-        _selectedTrip.asStateFlow()
+    val selectedTrip: StateFlow<UiState<Trip>> = _selectedTrip.asStateFlow()
 
-    // Live location simulation
-    private val _liveLocation =
-        MutableStateFlow<LiveLocation?>(null)
-    val liveLocation: StateFlow<LiveLocation?> =
-        _liveLocation.asStateFlow()
+    private val _liveLocation = MutableStateFlow<LiveLocation?>(null)
+    val liveLocation: StateFlow<LiveLocation?> = _liveLocation.asStateFlow()
 
-    // Location sharing toggle
     var isLocationSharing by mutableStateOf(false)
         private set
 
-    // Current route index for simulation
     private var routeIndex = 0
     private var locationJob: Job? = null
 
-    // Trip update state
     private val _tripUpdateState =
         MutableStateFlow<UiState<Unit>>(UiState.Idle)
-    val tripUpdateState: StateFlow<UiState<Unit>> =
-        _tripUpdateState.asStateFlow()
+    val tripUpdateState: StateFlow<UiState<Unit>> = _tripUpdateState.asStateFlow()
 
-    // Issue report fields
     var issueCategory by mutableStateOf(IssueCategory.MECHANICAL)
         private set
     var issueDescription by mutableStateOf("")
@@ -71,45 +69,87 @@ class DriverViewModel @Inject constructor(
     var issueDescriptionError by mutableStateOf<String?>(null)
         private set
 
-    // Issue submit state
     private val _issueState =
         MutableStateFlow<UiState<Unit>>(UiState.Idle)
-    val issueState: StateFlow<UiState<Unit>> =
-        _issueState.asStateFlow()
+    val issueState: StateFlow<UiState<Unit>> = _issueState.asStateFlow()
 
-    private val allTrips = mockTrips.toMutableList()
+    // Real driver ID from Firebase Auth (was hardcoded "D001")
+    private val driverId: String
+        get() = authRepository.currentUserId ?: ""
+
+    private var cachedTrips: List<Trip> = emptyList()
+
+    private suspend fun bookingToTrip(booking: Booking): Trip {
+        val vehicle = booking.vehicleAssigned?.let {
+            vehicleRepository.getVehicleByRegistration(it)
+        }
+        val requester = if (booking.userId.isNotBlank()) {
+            userRepository.getUserById(booking.userId)
+        } else null
+
+        val status = when {
+            booking.status == BookingRequestStatus.COMPLETED -> TripStatus.COMPLETED
+            booking.status == BookingRequestStatus.CANCELLED -> TripStatus.CANCELLED
+            booking.tripStatus == "IN_PROGRESS" -> TripStatus.IN_PROGRESS
+            else -> TripStatus.UPCOMING
+        }
+
+        return Trip(
+            id = booking.id,
+            bookingId = booking.id,
+            destination = booking.destination,
+            purpose = booking.purpose,
+            passengerCount = booking.passengerCount,
+            departureTime = booking.departureTime,
+            returnTime = booking.returnTime,
+            date = booking.departureDate,
+            vehicleRegistration = booking.vehicleAssigned ?: "",
+            vehicleMake = vehicle?.make ?: "",
+            vehicleModel = vehicle?.model ?: "",
+            requesterName = requester?.fullName ?: "Unknown",
+            requesterPhone = requester?.phone ?: "—",
+            status = status
+        )
+    }
 
     fun loadTrips() {
         viewModelScope.launch {
             _tripsState.value = UiState.Loading
-            delay(800)
-            _tripsState.value = UiState.Success(allTrips)
+            try {
+                bookingRepository.getBookingsForDriver(driverId).collect { bookings ->
+                    val trips = bookings.map { bookingToTrip(it) }
+                    cachedTrips = trips
+                    _tripsState.value = UiState.Success(trips)
+                }
+            } catch (e: Exception) {
+                _tripsState.value = UiState.Error(e.message ?: "Failed to load trips")
+            }
         }
     }
 
     fun loadTripById(tripId: String) {
         viewModelScope.launch {
             _selectedTrip.value = UiState.Loading
-            delay(400)
-            val trip = allTrips.find { it.id == tripId }
-            if (trip != null) {
-                _selectedTrip.value = UiState.Success(trip)
-            } else {
-                _selectedTrip.value = UiState.Error("Trip not found")
+            try {
+                bookingRepository.getBookingById(tripId).collect { booking ->
+                    if (booking != null) {
+                        val trip = bookingToTrip(booking)
+                        _selectedTrip.value = UiState.Success(trip)
+                    } else {
+                        _selectedTrip.value = UiState.Error("Trip not found")
+                    }
+                }
+            } catch (e: Exception) {
+                _selectedTrip.value = UiState.Error(
+                    e.message ?: "Failed to load trip"
+                )
             }
         }
     }
 
-    // Driver ID — in production comes from Firebase Auth
-    private val driverId = "D001"
-
     fun toggleLocationSharing() {
         isLocationSharing = !isLocationSharing
-        if (isLocationSharing) {
-            startLocationUpdates()
-        } else {
-            stopLocationUpdates()
-        }
+        if (isLocationSharing) startLocationUpdates() else stopLocationUpdates()
     }
 
     private fun startLocationUpdates() {
@@ -118,27 +158,19 @@ class DriverViewModel @Inject constructor(
         locationJob = viewModelScope.launch {
             try {
                 while (isLocationSharing) {
-                    if (routeIndex >= simulatedRouteCoordinates.size) {
-                        routeIndex = 0
-                    }
+                    if (routeIndex >= simulatedRouteCoordinates.size) routeIndex = 0
                     val coordinate = simulatedRouteCoordinates[routeIndex]
                     val location = coordinate.copy(
                         isSharing = true,
                         timestamp = getCurrentTime(routeIndex)
                     )
                     _liveLocation.value = location
-
-                    // Push to Firebase Realtime Database
-                    locationRepository.updateDriverLocation(
-                        driverId = driverId,
-                        location = location
-                    )
-
+                    locationRepository.updateDriverLocation(driverId, location)
                     routeIndex++
                     kotlinx.coroutines.delay(3000)
                 }
             } catch (e: Exception) {
-                // Coroutine cancelled cleanly
+                // cancelled cleanly
             }
         }
     }
@@ -147,18 +179,14 @@ class DriverViewModel @Inject constructor(
         locationJob?.cancel()
         viewModelScope.launch {
             locationRepository.stopSharing(driverId)
-            _liveLocation.value = _liveLocation.value?.copy(
-                isSharing = false
-            )
+            _liveLocation.value = _liveLocation.value?.copy(isSharing = false)
         }
     }
 
     private fun getCurrentTime(index: Int): String {
         val times = listOf(
-            "08:00 AM", "08:03 AM", "08:06 AM",
-            "08:09 AM", "08:12 AM", "08:15 AM",
-            "08:18 AM", "08:21 AM", "08:24 AM",
-            "08:27 AM"
+            "08:00 AM", "08:03 AM", "08:06 AM", "08:09 AM", "08:12 AM",
+            "08:15 AM", "08:18 AM", "08:21 AM", "08:24 AM", "08:27 AM"
         )
         return times.getOrElse(index) { "08:30 AM" }
     }
@@ -166,49 +194,40 @@ class DriverViewModel @Inject constructor(
     fun startTrip(tripId: String) {
         viewModelScope.launch {
             _tripUpdateState.value = UiState.Loading
-            delay(1000)
-            val index = allTrips.indexOfFirst { it.id == tripId }
-            if (index != -1) {
-                allTrips[index] = allTrips[index].copy(
-                    status = TripStatus.IN_PROGRESS
-                )
-                _selectedTrip.value = UiState.Success(allTrips[index])
-                _tripsState.value = UiState.Success(allTrips.toList())
-            }
-            _tripUpdateState.value = UiState.Success(Unit)
+            val result = bookingRepository.updateTripStatus(tripId, "IN_PROGRESS")
+            result.fold(
+                onSuccess = { _tripUpdateState.value = UiState.Success(Unit) },
+                onFailure = {
+                    _tripUpdateState.value = UiState.Error(it.message ?: "Failed to start trip")
+                }
+            )
         }
     }
 
     fun completeTrip(tripId: String) {
         viewModelScope.launch {
             _tripUpdateState.value = UiState.Loading
-            delay(1000)
             stopLocationUpdates()
             isLocationSharing = false
-            val index = allTrips.indexOfFirst { it.id == tripId }
-            if (index != -1) {
-                allTrips[index] = allTrips[index].copy(
-                    status = TripStatus.COMPLETED
-                )
-                _selectedTrip.value = UiState.Success(allTrips[index])
-                _tripsState.value = UiState.Success(allTrips.toList())
-            }
-            _tripUpdateState.value = UiState.Success(Unit)
+            val result = bookingRepository.updateBookingStatusOnly(
+                bookingId = tripId,
+                status = BookingRequestStatus.COMPLETED
+            )
+            result.fold(
+                onSuccess = { _tripUpdateState.value = UiState.Success(Unit) },
+                onFailure = {
+                    _tripUpdateState.value = UiState.Error(it.message ?: "Failed to complete trip")
+                }
+            )
         }
     }
 
-    fun onIssueCategoryChange(category: IssueCategory) {
-        issueCategory = category
-    }
-
+    fun onIssueCategoryChange(category: IssueCategory) { issueCategory = category }
     fun onIssueDescriptionChange(value: String) {
         issueDescription = value
         issueDescriptionError = null
     }
-
-    fun onIssueSeverityChange(severity: IssueSeverity) {
-        issueSeverity = severity
-    }
+    fun onIssueSeverityChange(severity: IssueSeverity) { issueSeverity = severity }
 
     fun submitIssue(tripId: String, onSuccess: () -> Unit) {
         if (issueDescription.isBlank()) {
@@ -217,16 +236,27 @@ class DriverViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _issueState.value = UiState.Loading
-            delay(1500)
-            _issueState.value = UiState.Success(Unit)
-            onSuccess()
+            val result = issueReportRepository.submitIssue(
+                tripId = tripId,
+                driverId = driverId,
+                category = issueCategory,
+                description = issueDescription,
+                severity = issueSeverity
+            )
+            result.fold(
+                onSuccess = {
+                    _issueState.value = UiState.Success(Unit)
+                    onSuccess()
+                },
+                onFailure = {
+                    _issueState.value = UiState.Error(it.message ?: "Failed to submit issue")
+                }
+            )
         }
     }
 
     fun resetIssueState() { _issueState.value = UiState.Idle }
-    fun resetTripUpdateState() {
-        _tripUpdateState.value = UiState.Idle
-    }
+    fun resetTripUpdateState() { _tripUpdateState.value = UiState.Idle }
 
     override fun onCleared() {
         super.onCleared()

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1042490484404",
+    "project_id": "unitransport-17c08",
+    "storage_bucket": "unitransport-17c08.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1042490484404:android:384415b3ef456d46bf99e1",
+        "android_client_info": {
+          "package_name": "com.example.unitransport"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDew3XJRNANF8k5lTd-y_PW5QJOGmKC_7w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
