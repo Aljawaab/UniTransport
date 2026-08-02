@@ -47,6 +47,7 @@ fun BookingCard(
     booking: Booking,
     onClick: () -> Unit,
     onRateDriver: (() -> Unit)? = null,
+    isDriverRated: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -164,34 +165,59 @@ fun BookingCard(
             }
 
             // Rate Driver button — ONLY for completed bookings
-            if (booking.status == BookingRequestStatus.COMPLETED
-                && onRateDriver != null) {
+            // Rate Driver button / Rated indicator — ONLY for completed bookings
+            if (booking.status == BookingRequestStatus.COMPLETED) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Divider(
                     color = MaterialTheme.colorScheme.outlineVariant
                         .copy(alpha = 0.5f)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = onRateDriver,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor =
-                            StatusPending.copy(alpha = 0.15f),
-                        contentColor = StatusPending
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Rate Your Driver",
-                        style = MaterialTheme.typography.labelLarge
-                    )
+
+                if (isDriverRated) {
+                    Button(
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            disabledContainerColor = MaterialTheme.colorScheme.onSurface
+                                .copy(alpha = 0.08f),
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Driver Rated",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                } else if (onRateDriver != null) {
+                    Button(
+                        onClick = onRateDriver,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = StatusPending.copy(alpha = 0.15f),
+                            contentColor = StatusPending
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Rate Your Driver",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 }
             }
         }

@@ -10,6 +10,7 @@ import com.example.unitransport.data.repository.AuthRepository
 import com.example.unitransport.data.repository.BookingRepository
 import com.example.unitransport.data.repository.IssueReportRepository
 import com.example.unitransport.data.repository.LocationRepository
+import com.example.unitransport.data.repository.RatingRepository
 import com.example.unitransport.data.repository.UserRepository
 import com.example.unitransport.data.repository.VehicleRepository
 import com.example.unitransport.features.bookings.model.Booking
@@ -17,6 +18,7 @@ import com.example.unitransport.features.bookings.model.BookingRequestStatus
 import com.example.unitransport.features.driver.model.IssueCategory
 import com.example.unitransport.features.driver.model.IssueSeverity
 import com.example.unitransport.features.driver.model.LiveLocation
+import com.example.unitransport.features.driver.model.RatingType
 import com.example.unitransport.features.driver.model.Trip
 import com.example.unitransport.features.driver.model.TripStatus
 import com.example.unitransport.features.driver.model.simulatedRouteCoordinates
@@ -36,7 +38,8 @@ class DriverViewModel @Inject constructor(
     private val vehicleRepository: VehicleRepository,
     private val userRepository: UserRepository,
     private val issueReportRepository: IssueReportRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val ratingRepository: RatingRepository
 ) : ViewModel() {
 
     private val _tripsState =
@@ -218,6 +221,17 @@ class DriverViewModel @Inject constructor(
                 onFailure = {
                     _tripUpdateState.value = UiState.Error(it.message ?: "Failed to complete trip")
                 }
+            )
+        }
+    }
+
+    private val _hasRatedPassengers = MutableStateFlow(false)
+    val hasRatedPassengers: StateFlow<Boolean> = _hasRatedPassengers.asStateFlow()
+
+    fun checkIfRatedPassengers(bookingId: String) {
+        viewModelScope.launch {
+            _hasRatedPassengers.value = ratingRepository.hasRated(
+                bookingId, RatingType.DRIVER_RATES_PASSENGERS
             )
         }
     }

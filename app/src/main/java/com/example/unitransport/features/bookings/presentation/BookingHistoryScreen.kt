@@ -44,6 +44,7 @@ fun BookingHistoryScreen(
     viewModel: BookingHistoryViewModel = hiltViewModel()
 ) {
     val bookingsState by viewModel.bookingsState.collectAsState()
+    val ratedBookingIds by viewModel.ratedBookingIds.collectAsState()
 
     LaunchedEffect(key1=Unit) {
         viewModel.loadBookings()
@@ -142,20 +143,22 @@ fun BookingHistoryScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(filtered) { booking ->
+                                val isRated = booking.id in ratedBookingIds
                                 BookingCard(
                                     booking = booking,
                                     onClick = { onNavigateToDetail(booking.id) },
                                     onRateDriver = if (
-                                        booking.status == BookingRequestStatus.COMPLETED
+                                        booking.status == BookingRequestStatus.COMPLETED && !isRated
                                     ) {
                                         {
                                             onNavigateToRateDriver(
                                                 booking.id,
                                                 booking.driverAssigned ?: "Driver",
-                                                "D001" // In Step 16 this comes from Firestore
+                                                booking.driverId ?: ""
                                             )
                                         }
-                                    } else null
+                                    } else null,
+                                    isDriverRated = isRated
                                 )
                             }
                         }

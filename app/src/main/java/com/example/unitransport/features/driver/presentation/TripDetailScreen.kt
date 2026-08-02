@@ -76,9 +76,11 @@ fun TripDetailScreen(
     val tripState by viewModel.selectedTrip.collectAsState()
     val liveLocation by viewModel.liveLocation.collectAsState()
     val tripUpdateState by viewModel.tripUpdateState.collectAsState()
+    val hasRated by viewModel.hasRatedPassengers.collectAsState()
 
     LaunchedEffect(key1=tripId) {
         viewModel.loadTripById(tripId)
+        viewModel.checkIfRatedPassengers(tripId)
     }
 
     Scaffold(
@@ -128,6 +130,7 @@ fun TripDetailScreen(
                     liveLocation = liveLocation,
                     isLocationSharing = viewModel.isLocationSharing,
                     isUpdating = tripUpdateState is UiState.Loading,
+                    hasRated = hasRated,
                     paddingValues = paddingValues,
                     onToggleLocation = { viewModel.toggleLocationSharing() },
                     onStartTrip = { viewModel.startTrip(state.data.id) },
@@ -167,6 +170,7 @@ private fun TripDetailContent(
     liveLocation: LiveLocation?,
     isLocationSharing: Boolean,
     isUpdating: Boolean,
+    hasRated: Boolean,
     paddingValues: PaddingValues,
     onToggleLocation: () -> Unit,
     onStartTrip: () -> Unit,
@@ -617,27 +621,54 @@ private fun TripDetailContent(
 // after TripStatus.COMPLETED case
 
                 if (trip.status == TripStatus.COMPLETED) {
-                    Button(
-                        onClick = onNavigateToRatePassengers,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = StatusPending
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Star,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Rate Passengers",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
+                    if (hasRated) {
+                        Button(
+                            onClick = {},
+                            enabled = false,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                disabledContainerColor = MaterialTheme.colorScheme.onSurface
+                                    .copy(alpha = 0.12f)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Passengers Rated",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        Button(
+                            onClick = onNavigateToRatePassengers,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = StatusPending
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Rate Passengers",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
                     }
                 }
             }

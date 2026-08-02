@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unitransport.core.base.UiState
 import com.example.unitransport.data.repository.BookingRepository
+import com.example.unitransport.data.repository.RatingRepository
 import com.example.unitransport.features.bookings.model.Booking
 import com.example.unitransport.features.bookings.model.BookingRequestStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,7 +19,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class BookingHistoryViewModel @Inject constructor(
-    private val bookingRepository: BookingRepository
+    private val bookingRepository: BookingRepository,
+    private val ratingRepository: RatingRepository
 ) : ViewModel() {
 
     private val _bookingsState =
@@ -31,13 +33,19 @@ class BookingHistoryViewModel @Inject constructor(
 
     val tabs = listOf("All", "Pending", "Approved", "Completed", "Rejected")
 
+    private val _ratedBookingIds = MutableStateFlow<Set<String>>(emptySet())
+    val ratedBookingIds: StateFlow<Set<String>> = _ratedBookingIds.asStateFlow()
+
     fun loadBookings() {
         viewModelScope.launch {
             _bookingsState.value = UiState.Loading
             try {
-                // Real-time listener from Firestore
                 bookingRepository.getUserBookings().collect { bookings ->
                     _bookingsState.value = UiState.Success(bookings)
+                    val completedIds = bookings
+                        .filter { it.status == BookingRequestStatus.COMPLETED }
+                        .map { it.id }
+                    _ratedBookingIds.value = ratingRepository.getRatedBookingIds(completedIds)
                 }
             } catch (e: Exception) {
                 _bookingsState.value = UiState.Error(

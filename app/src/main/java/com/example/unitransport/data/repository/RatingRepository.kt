@@ -113,4 +113,38 @@ class RatingRepository @Inject constructor() {
             }
         awaitClose { listener.remove() }
     }
+
+    // Check if a rating already exists for this booking + type combo
+    suspend fun hasRated(bookingId: String, type: RatingType): Boolean {
+        return try {
+            val snapshot = ratingsCollection
+                .whereEqualTo("bookingId", bookingId)
+                .whereEqualTo("type", type.name)
+                .limit(1)
+                .get()
+                .await()
+            !snapshot.isEmpty
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // Returns the set of bookingIds that already have a BOOKER_RATES_DRIVER rating
+    suspend fun getRatedBookingIds(bookingIds: List<String>): Set<String> {
+        if (bookingIds.isEmpty()) return emptySet()
+        return try {
+            // Firestore 'in' queries max out at 30 items per query
+            bookingIds.chunked(30).flatMap { chunk ->
+                ratingsCollection
+                    .whereIn("bookingId", chunk)
+                    .whereEqualTo("type", RatingType.BOOKER_RATES_DRIVER.name)
+                    .get()
+                    .await()
+                    .documents
+                    .mapNotNull { it.getString("bookingId") }
+            }.toSet()
+        } catch (e: Exception) {
+            emptySet()
+        }
+    }
 }

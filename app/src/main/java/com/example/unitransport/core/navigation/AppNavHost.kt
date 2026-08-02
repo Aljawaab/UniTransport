@@ -11,6 +11,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.unitransport.core.base.UiState
+import com.example.unitransport.features.profile.presentation.ProfileViewModel
 import com.example.unitransport.features.admin.presentation.AdminDashboardScreen
 import com.example.unitransport.features.admin.presentation.ReportsScreen
 import com.example.unitransport.features.admin.presentation.SystemLogsScreen
@@ -470,21 +475,25 @@ fun AppNavHost(
                 navArgument("targetId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val tripId = backStackEntry.arguments
-                ?.getString("tripId") ?: ""
-            val bookingId = backStackEntry.arguments
-                ?.getString("bookingId") ?: ""
-            val targetName = backStackEntry.arguments
-                ?.getString("targetName") ?: ""
-            val targetId = backStackEntry.arguments
-                ?.getString("targetId") ?: ""
+            val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+            val targetName = backStackEntry.arguments?.getString("targetName") ?: ""
+            val targetId = backStackEntry.arguments?.getString("targetId") ?: ""
+
+            val profileViewModel: ProfileViewModel = hiltViewModel()
+            val profileState by profileViewModel.profileState.collectAsState()
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                profileViewModel.loadProfile()
+            }
+            val currentUser = (profileState as? UiState.Success)?.data
+
             RatingScreen(
                 tripId = tripId,
                 bookingId = bookingId,
                 targetName = targetName,
                 targetId = targetId,
-                raterName = "Alex Mwangi",
-                raterRole = "Student",
+                raterName = currentUser?.fullName ?: "Unknown",
+                raterRole = currentUser?.role?.displayName ?: "Booker",
                 ratingType = RatingType.BOOKER_RATES_DRIVER,
                 onNavigateBack = { navController.popBackStack() }
             )
@@ -498,17 +507,23 @@ fun AppNavHost(
                 navArgument("bookingId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val tripId = backStackEntry.arguments
-                ?.getString("tripId") ?: ""
-            val bookingId = backStackEntry.arguments
-                ?.getString("bookingId") ?: ""
+            val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+
+            val profileViewModel: ProfileViewModel = hiltViewModel()
+            val profileState by profileViewModel.profileState.collectAsState()
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                profileViewModel.loadProfile()
+            }
+            val currentUser = (profileState as? UiState.Success)?.data
+
             RatingScreen(
                 tripId = tripId,
                 bookingId = bookingId,
                 targetName = "Trip Passengers",
                 targetId = bookingId,
-                raterName = "John Kamau",
-                raterRole = "Driver",
+                raterName = currentUser?.fullName ?: "Unknown",
+                raterRole = currentUser?.role?.displayName ?: "Driver",
                 ratingType = RatingType.DRIVER_RATES_PASSENGERS,
                 onNavigateBack = { navController.popBackStack() }
             )
