@@ -6,79 +6,92 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unitransport.core.base.UiState
+import com.example.unitransport.data.repository.BookingRepository
+import com.example.unitransport.data.repository.UserRepository
+import com.example.unitransport.data.repository.VehicleRepository
 import com.example.unitransport.features.admin.model.AdminReport
 import com.example.unitransport.features.admin.model.SystemLog
 import com.example.unitransport.features.admin.model.SystemUser
-import com.example.unitransport.features.admin.model.mockAdminReport
-import com.example.unitransport.features.admin.model.mockSystemLogs
-import com.example.unitransport.features.admin.model.mockSystemUsers
 import com.example.unitransport.features.auth.model.UserRole
+import com.example.unitransport.features.bookings.model.BookingRequestStatus
+import com.example.unitransport.features.vehicles.model.VehicleStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
-class AdminViewModel @Inject constructor() : ViewModel() {
+class AdminViewModel @Inject constructor(
+    private val userRepository: UserRepository,
+    private val bookingRepository: BookingRepository,
+    private val vehicleRepository: VehicleRepository
+) : ViewModel() {
 
-    // Report state
     private val _reportState =
         MutableStateFlow<UiState<AdminReport>>(UiState.Loading)
-    val reportState: StateFlow<UiState<AdminReport>> =
-        _reportState.asStateFlow()
+    val reportState: StateFlow<UiState<AdminReport>> = _reportState.asStateFlow()
 
-    // Users state
     private val _usersState =
         MutableStateFlow<UiState<List<SystemUser>>>(UiState.Loading)
-    val usersState: StateFlow<UiState<List<SystemUser>>> =
-        _usersState.asStateFlow()
+    val usersState: StateFlow<UiState<List<SystemUser>>> = _usersState.asStateFlow()
 
-    // Logs state
     private val _logsState =
         MutableStateFlow<UiState<List<SystemLog>>>(UiState.Loading)
-    val logsState: StateFlow<UiState<List<SystemLog>>> =
-        _logsState.asStateFlow()
+    val logsState: StateFlow<UiState<List<SystemLog>>> = _logsState.asStateFlow()
 
-    // Toggle state
     private val _toggleState =
         MutableStateFlow<UiState<Unit>>(UiState.Idle)
-    val toggleState: StateFlow<UiState<Unit>> =
-        _toggleState.asStateFlow()
+    val toggleState: StateFlow<UiState<Unit>> = _toggleState.asStateFlow()
 
-    // Search
     var searchQuery by mutableStateOf("")
         private set
-
-    // Selected role filter
     var selectedRoleFilter by mutableStateOf<UserRole?>(null)
         private set
 
-    private val allUsers = mockSystemUsers.toMutableList()
+    private var allUsers: List<SystemUser> = emptyList()
 
-    fun loadReport() {
-        viewModelScope.launch {
-            _reportState.value = UiState.Loading
-            delay(800)
-            _reportState.value = UiState.Success(mockAdminReport)
-        }
-    }
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     fun loadUsers() {
         viewModelScope.launch {
             _usersState.value = UiState.Loading
-            delay(600)
-            _usersState.value = UiState.Success(allUsers.toList())
-        }
-    }
+            try {
+                val profiles = userRepository.getAllUsers()
+                val bookings = bookingRepository.getAllBookings().first()
+                val bookingCounts = bookings.groupBy { it.userId }
+                    .mapValues { it.value.size }
 
-    fun loadLogs() {
-        viewModelScope.launch {
-            _logsState.value = UiState.Loading
-            delay(600)
-            _logsState.value = UiState.Success(mockSystemLogs)
+                allUsers = profiles.map { profile ->
+                    val role = try {
+                        UserRole.valueOf(profile.role)
+                    } catch (e: Exception) {
+                        UserRole.STUDENT
+                    }
+                    SystemUser(
+                        id = profile.uid,
+                        fullName = profile.fullName,
+                        email = profile.email,
+                        role = role,
+                        department = profile.department,
+                        isActive = profile.isActive,
+                        joinDate = if (profile.createdAt > 0)
+                            dateFormat.format(Date(profile.createdAt))
+                        else "—",
+                        totalBookings = bookingCounts[profile.uid] ?: 0
+                    )
+                }
+                applyUserFilters()
+            } catch (e: Exception) {
+                _usersState.value = UiState.Error(
+                    e.message ?: "Failed to load users"
+                )
+            }
         }
     }
 
@@ -108,17 +121,80 @@ class AdminViewModel @Inject constructor() : ViewModel() {
     fun toggleUserStatus(userId: String) {
         viewModelScope.launch {
             _toggleState.value = UiState.Loading
-            delay(1000)
-            val index = allUsers.indexOfFirst { it.id == userId }
-            if (index != -1) {
-                allUsers[index] = allUsers[index].copy(
-                    isActive = !allUsers[index].isActive
-                )
-                applyUserFilters()
+            val current = allUsers.find { it.id == userId }
+            if (current == null) {
+                _toggleState.value = UiState.Error("User not found")
+                return@launch
             }
-            _toggleState.value = UiState.Success(Unit)
-            delay(500)
-            _toggleState.value = UiState.Idle
+            val result = userRepository.toggleUserActive(userId, !current.isActive)
+            result.fold(
+                onSuccess = {
+                    loadUsers()
+                    _toggleState.value = UiState.Success(Unit)
+                },
+                onFailure = { error ->
+                    _toggleState.value = UiState.Error(
+                        error.message ?: "Failed to update user"
+                    )
+                }
+            )
+        }
+    }
+
+    fun loadReport() {
+        viewModelScope.launch {
+            _reportState.value = UiState.Loading
+            try {
+                val users = userRepository.getAllUsers()
+                val bookings = bookingRepository.getAllBookings().first()
+                val vehicles = vehicleRepository.getVehicles().first()
+
+                val activeTrips = bookings.count {
+                    it.status == BookingRequestStatus.ACTIVE
+                }
+                val pendingRequests = bookings.count {
+                    it.status == BookingRequestStatus.PENDING
+                }
+                val completedThisMonth = bookings.count {
+                    it.status == BookingRequestStatus.COMPLETED
+                }
+                val availableVehicles = vehicles.count {
+                    it.status == VehicleStatus.AVAILABLE
+                }
+                val utilization = if (vehicles.isNotEmpty()) {
+                    ((vehicles.size - availableVehicles) * 100) / vehicles.size
+                } else 0
+                val mostBooked = bookings
+                    .groupingBy { it.destination }
+                    .eachCount()
+                    .maxByOrNull { it.value }?.key ?: "—"
+
+                _reportState.value = UiState.Success(
+                    AdminReport(
+                        totalUsers = users.size,
+                        totalVehicles = vehicles.size,
+                        totalBookings = bookings.size,
+                        activeTrips = activeTrips,
+                        pendingRequests = pendingRequests,
+                        completedTripsThisMonth = completedThisMonth,
+                        vehicleUtilizationPercent = utilization,
+                        mostBookedDestination = mostBooked
+                    )
+                )
+            } catch (e: Exception) {
+                _reportState.value = UiState.Error(
+                    e.message ?: "Failed to load report"
+                )
+            }
+        }
+    }
+
+    fun loadLogs() {
+        viewModelScope.launch {
+            _logsState.value = UiState.Loading
+            _logsState.value = UiState.Success(
+                com.example.unitransport.features.admin.model.mockSystemLogs
+            )
         }
     }
 }

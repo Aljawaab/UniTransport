@@ -52,6 +52,8 @@ fun VehicleListScreen(
 ) {
     val vehiclesState by viewModel.vehiclesState.collectAsState()
     var isSearchActive by remember { mutableStateOf(false) }
+    val displayStatusMap by viewModel.displayStatusMap.collectAsState()
+
 
     val filters = listOf(
         null to "All",
@@ -190,6 +192,7 @@ fun VehicleListScreen(
                             items(state.data) { vehicle ->
                                 VehicleCard(
                                     vehicle = vehicle,
+                                    displayStatus = displayStatusMap[vehicle.id],
                                     onClick = {
                                         onNavigateToDetail(vehicle.id)
                                     }

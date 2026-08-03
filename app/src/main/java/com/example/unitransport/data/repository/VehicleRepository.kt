@@ -169,4 +169,70 @@ class VehicleRepository @Inject constructor() {
             null
         }
     }
+
+    suspend fun addVehicle(vehicle: Vehicle): Result<Unit> {
+        return try {
+            val data = hashMapOf(
+                "registrationNumber" to vehicle.registrationNumber,
+                "make" to vehicle.make,
+                "model" to vehicle.model,
+                "type" to vehicle.type.name,
+                "capacity" to vehicle.capacity,
+                "status" to vehicle.status.name,
+                "description" to vehicle.description,
+                "yearOfManufacture" to vehicle.yearOfManufacture,
+                "fuelType" to vehicle.fuelType,
+                "features" to vehicle.features
+            )
+            vehiclesCollection.add(data).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateVehicle(vehicle: Vehicle): Result<Unit> {
+        return try {
+            val data = hashMapOf(
+                "registrationNumber" to vehicle.registrationNumber,
+                "make" to vehicle.make,
+                "model" to vehicle.model,
+                "type" to vehicle.type.name,
+                "capacity" to vehicle.capacity,
+                "status" to vehicle.status.name,
+                "description" to vehicle.description,
+                "yearOfManufacture" to vehicle.yearOfManufacture,
+                "fuelType" to vehicle.fuelType,
+                "features" to vehicle.features
+            )
+            vehiclesCollection.document(vehicle.id).update(data as Map<String, Any>).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteVehicle(vehicleId: String): Result<Unit> {
+        return try {
+            vehiclesCollection.document(vehicleId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Checks if this vehicle is currently assigned to an ACTIVE booking
+    suspend fun isVehicleInActiveTrip(registrationNumber: String): Boolean {
+        return try {
+            val snapshot = firestore.collection("bookings")
+                .whereEqualTo("vehicleAssigned", registrationNumber)
+                .whereEqualTo("status", "ACTIVE")
+                .limit(1)
+                .get()
+                .await()
+            !snapshot.isEmpty
+        } catch (e: Exception) {
+            false
+        }
+    }
 }

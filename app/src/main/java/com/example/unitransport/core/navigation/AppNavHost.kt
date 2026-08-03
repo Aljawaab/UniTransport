@@ -48,6 +48,8 @@ import com.example.unitransport.features.vehicles.presentation.VehicleDetailScre
 import com.example.unitransport.features.vehicles.presentation.VehicleListScreen
 import com.example.unitransport.features.profile.presentation.SettingsScreen
 import com.example.unitransport.features.bookings.presentation.BookingDetailScreen
+import com.example.unitransport.features.admin.presentation.AdminVehicleListScreen
+import com.example.unitransport.features.admin.presentation.AdminVehicleFormScreen
 
 @Composable
 fun AppNavHost(
@@ -280,7 +282,9 @@ fun AppNavHost(
         // ── Notifications (shared) ────────────────────────────────
         composable(AppDestinations.NOTIFICATIONS) {
             NotificationsScreen(
-                onNavigateToBooking = {}
+                onNavigateToBooking = { bookingId ->
+                    navController.navigate("booking_detail/$bookingId")
+                }
             )
         }
 
@@ -427,7 +431,7 @@ fun AppNavHost(
                     navController.navigate("user_management")
                 },
                 onNavigateToVehicles = {
-                    navController.navigate(AppDestinations.VEHICLE_LIST)
+                    navController.navigate("admin_vehicle_list")
                 },
                 onNavigateToReports = {
                     navController.navigate("reports")
@@ -452,6 +456,33 @@ fun AppNavHost(
 
         composable("reports") {
             ReportsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("admin_vehicle_list") {
+            AdminVehicleListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAdd = { navController.navigate("admin_vehicle_form") },
+                onNavigateToEdit = { vehicleId ->
+                    navController.navigate("admin_vehicle_form?vehicleId=$vehicleId")
+                }
+            )
+        }
+
+        composable(
+            route = "admin_vehicle_form?vehicleId={vehicleId}",
+            arguments = listOf(
+                navArgument("vehicleId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val vehicleId = backStackEntry.arguments?.getString("vehicleId")
+            AdminVehicleFormScreen(
+                vehicleId = vehicleId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

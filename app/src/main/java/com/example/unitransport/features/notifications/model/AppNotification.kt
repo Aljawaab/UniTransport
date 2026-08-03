@@ -7,7 +7,8 @@ data class AppNotification(
     val time: String,
     val type: NotificationType,
     val isRead: Boolean = false,
-    val relatedId: String? = null
+    val relatedId: String? = null,
+    val timestamp: Long = 0L
 )
 
 enum class NotificationType {
@@ -100,3 +101,18 @@ val mockNotifications = listOf(
         relatedId = "BK003"
     )
 )
+
+fun formatRelativeTime(timestampMillis: Long): String {
+    if (timestampMillis <= 0L) return ""
+    val diff = System.currentTimeMillis() - timestampMillis
+    val minutes = diff / 60000
+    val hours = diff / 3600000
+    val days = diff / 86400000
+    return when {
+        minutes < 1 -> "Just now"
+        minutes < 60 -> "$minutes minute${if (minutes == 1L) "" else "s"} ago"
+        hours < 24 -> "$hours hour${if (hours == 1L) "" else "s"} ago"
+        days == 1L -> "Yesterday"
+        else -> "$days days ago"
+    }
+}

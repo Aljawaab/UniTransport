@@ -10,6 +10,7 @@ import com.example.unitransport.data.repository.AuthRepository
 import com.example.unitransport.data.repository.BookingRepository
 import com.example.unitransport.data.repository.IssueReportRepository
 import com.example.unitransport.data.repository.LocationRepository
+import com.example.unitransport.data.repository.NotificationRepository
 import com.example.unitransport.data.repository.RatingRepository
 import com.example.unitransport.data.repository.UserRepository
 import com.example.unitransport.data.repository.VehicleRepository
@@ -22,11 +23,13 @@ import com.example.unitransport.features.driver.model.RatingType
 import com.example.unitransport.features.driver.model.Trip
 import com.example.unitransport.features.driver.model.TripStatus
 import com.example.unitransport.features.driver.model.simulatedRouteCoordinates
+import com.example.unitransport.features.notifications.model.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlinx.coroutines.flow.firstOrNull
@@ -39,7 +42,8 @@ class DriverViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val issueReportRepository: IssueReportRepository,
     private val authRepository: AuthRepository,
-    private val ratingRepository: RatingRepository
+    private val ratingRepository: RatingRepository,
+    private val notificationRepository: NotificationRepository
 ) : ViewModel() {
 
     private val _tripsState =
@@ -199,7 +203,10 @@ class DriverViewModel @Inject constructor(
             _tripUpdateState.value = UiState.Loading
             val result = bookingRepository.updateTripStatus(tripId, "IN_PROGRESS")
             result.fold(
-                onSuccess = { _tripUpdateState.value = UiState.Success(Unit) },
+                onSuccess = {
+                    _tripUpdateState.value = UiState.Success(Unit)
+                    notifyTripEvent(tripId, started = true)
+                },
                 onFailure = {
                     _tripUpdateState.value = UiState.Error(it.message ?: "Failed to start trip")
                 }
@@ -217,7 +224,10 @@ class DriverViewModel @Inject constructor(
                 status = BookingRequestStatus.COMPLETED
             )
             result.fold(
-                onSuccess = { _tripUpdateState.value = UiState.Success(Unit) },
+                onSuccess = {
+                    _tripUpdateState.value = UiState.Success(Unit)
+                    notifyTripEvent(tripId, started = false)
+                },
                 onFailure = {
                     _tripUpdateState.value = UiState.Error(it.message ?: "Failed to complete trip")
                 }
@@ -266,6 +276,26 @@ class DriverViewModel @Inject constructor(
                     _issueState.value = UiState.Error(it.message ?: "Failed to submit issue")
                 }
             )
+        }
+    }
+
+    private fun notifyTripEvent(bookingId: String, started: Boolean) {
+        viewModelScope.launch {
+            val booking = bookingRepository.getBookingById(bookingId).first()
+            if (booking != null && booking.userId.isNotBlank()) {
+                notificationRepository.addNotification(
+                    userId = booking.userId,
+                    title = if (started) "Trip Started" else "Trip Completed",
+                    message = if (started)
+                        "Your driver has started the trip to ${booking.destination}."
+                    else
+                        "Your trip to ${booking.destination} has been completed. " +
+                                "Thank you for using UniTransport.",
+                    type = if (started) NotificationType.TRIP_STARTED
+                    else NotificationType.TRIP_COMPLETED,
+                    relatedId = booking.id
+                )
+            }
         }
     }
 

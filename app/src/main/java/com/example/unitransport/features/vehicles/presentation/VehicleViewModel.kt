@@ -6,19 +6,24 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unitransport.core.base.UiState
+import com.example.unitransport.data.repository.BookingRepository
 import com.example.unitransport.data.repository.VehicleRepository
 import com.example.unitransport.features.vehicles.model.Vehicle
+import com.example.unitransport.features.vehicles.model.VehicleDisplayStatus
 import com.example.unitransport.features.vehicles.model.VehicleStatus
+import com.example.unitransport.features.vehicles.model.computeVehicleDisplayStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class VehicleViewModel @Inject constructor(
-    private val vehicleRepository: VehicleRepository
+    private val vehicleRepository: VehicleRepository,
+    private val bookingRepository: BookingRepository
 ) : ViewModel() {
 
     private val _vehiclesState =
@@ -30,6 +35,11 @@ class VehicleViewModel @Inject constructor(
         MutableStateFlow<UiState<Vehicle>>(UiState.Idle)
     val selectedVehicle: StateFlow<UiState<Vehicle>> =
         _selectedVehicle.asStateFlow()
+
+    private val _displayStatusMap =
+        MutableStateFlow<Map<String, VehicleDisplayStatus>>(emptyMap())
+    val displayStatusMap: StateFlow<Map<String, VehicleDisplayStatus>> =
+        _displayStatusMap.asStateFlow()
 
     var searchQuery by mutableStateOf("")
         private set
@@ -43,11 +53,17 @@ class VehicleViewModel @Inject constructor(
         viewModelScope.launch {
             _vehiclesState.value = UiState.Loading
             try {
-                // Real-time listener from Firestore
-                vehicleRepository.getVehicles().collect { vehicles ->
-                    allVehicles = vehicles
-                    applyFilters()
-                }
+                kotlinx.coroutines.flow.combine(
+                    vehicleRepository.getVehicles(),
+                    bookingRepository.getAllBookings()
+                ) { vehicles, bookings -> vehicles to bookings }
+                    .collect { (vehicles, bookings) ->
+                        allVehicles = vehicles
+                        _displayStatusMap.value = vehicles.associate { v ->
+                            v.id to computeVehicleDisplayStatus(v, bookings)
+                        }
+                        applyFilters()
+                    }
             } catch (e: Exception) {
                 _vehiclesState.value = UiState.Error(
                     e.message ?: "Failed to load vehicles"
@@ -62,10 +78,15 @@ class VehicleViewModel @Inject constructor(
             val vehicle = vehicleRepository.getVehicleById(vehicleId)
             if (vehicle != null) {
                 _selectedVehicle.value = UiState.Success(vehicle)
+                try {
+                    val bookings = bookingRepository.getAllBookings().first()
+                    _displayStatusMap.value = _displayStatusMap.value +
+                            (vehicle.id to computeVehicleDisplayStatus(vehicle, bookings))
+                } catch (e: Exception) {
+                    // leave display status unset; UI falls back gracefully
+                }
             } else {
-                _selectedVehicle.value = UiState.Error(
-                    "Vehicle not found"
-                )
+                _selectedVehicle.value = UiState.Error("Vehicle not found")
             }
         }
     }

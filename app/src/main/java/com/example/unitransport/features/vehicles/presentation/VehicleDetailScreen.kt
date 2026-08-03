@@ -61,6 +61,7 @@ fun VehicleDetailScreen(
     viewModel: VehicleViewModel = hiltViewModel()
 ) {
     val vehicleState by viewModel.selectedVehicle.collectAsState()
+    val displayStatusMap by viewModel.displayStatusMap.collectAsState()
 
     LaunchedEffect(key1=vehicleId) {
         viewModel.loadVehicleById(vehicleId)
@@ -110,6 +111,7 @@ fun VehicleDetailScreen(
             is UiState.Success -> {
                 VehicleDetailContent(
                     vehicle = state.data,
+                    displayStatus = displayStatusMap[state.data.id],
                     paddingValues = paddingValues,
                     onBookClick = { onNavigateToBooking(state.data.id) }
                 )
@@ -139,9 +141,13 @@ fun VehicleDetailScreen(
 @Composable
 private fun VehicleDetailContent(
     vehicle: Vehicle,
+    displayStatus: com.example.unitransport.features.vehicles.model.VehicleDisplayStatus?,
     paddingValues: PaddingValues,
     onBookClick: () -> Unit
 ) {
+    val effectiveStatus = displayStatus
+        ?: com.example.unitransport.features.vehicles.model.VehicleDisplayStatus.AVAILABLE
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -170,7 +176,11 @@ private fun VehicleDetailContent(
                         .align(Alignment.TopEnd)
                         .padding(16.dp)
                 ) {
-                    VehicleStatusChip(status = vehicle.status)
+                    if (displayStatus != null) {
+                        com.example.unitransport.core.ui.components.VehicleDisplayStatusChip(status = displayStatus)
+                    } else {
+                        VehicleStatusChip(status = vehicle.status)
+                    }
                 }
             }
         }
@@ -313,23 +323,28 @@ private fun VehicleDetailContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
 
-            val (bgColor, textColor, message) = when (vehicle.status) {
-                VehicleStatus.AVAILABLE -> Triple(
+            val (bgColor, textColor, message) = when (effectiveStatus) {
+                com.example.unitransport.features.vehicles.model.VehicleDisplayStatus.AVAILABLE -> Triple(
                     MaterialTheme.colorScheme.secondaryContainer,
                     MaterialTheme.colorScheme.secondary,
                     "✓ This vehicle is available for booking"
                 )
-                VehicleStatus.RESERVED -> Triple(
+                com.example.unitransport.features.vehicles.model.VehicleDisplayStatus.BOOKED -> Triple(
                     MaterialTheme.colorScheme.primaryContainer,
                     MaterialTheme.colorScheme.primary,
-                    "⏳ This vehicle is currently reserved"
+                    "⏳ This vehicle is currently booked"
                 )
-                VehicleStatus.MAINTENANCE -> Triple(
+                com.example.unitransport.features.vehicles.model.VehicleDisplayStatus.ON_TRIP -> Triple(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    MaterialTheme.colorScheme.primary,
+                    "🚌 This vehicle is currently on a trip"
+                )
+                com.example.unitransport.features.vehicles.model.VehicleDisplayStatus.MAINTENANCE -> Triple(
                     MaterialTheme.colorScheme.errorContainer,
                     MaterialTheme.colorScheme.error,
                     "🔧 This vehicle is under maintenance"
                 )
-                VehicleStatus.OUT_OF_SERVICE -> Triple(
+                com.example.unitransport.features.vehicles.model.VehicleDisplayStatus.OUT_OF_SERVICE -> Triple(
                     MaterialTheme.colorScheme.errorContainer,
                     MaterialTheme.colorScheme.error,
                     "✗ This vehicle is out of service"
@@ -369,7 +384,7 @@ private fun VehicleDetailContent(
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = onBookClick,
-                enabled = vehicle.status == VehicleStatus.AVAILABLE,
+                enabled = effectiveStatus == com.example.unitransport.features.vehicles.model.VehicleDisplayStatus.AVAILABLE,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)

@@ -11,7 +11,9 @@ data class UserProfile(
     val email: String = "",
     val department: String = "",
     val role: String = "",
-    val phone: String = ""
+    val phone: String = "",
+    val isActive: Boolean = true,
+    val createdAt: Long = 0L
 )
 
 @Singleton
@@ -52,6 +54,17 @@ class UserRepository @Inject constructor() {
         email = getString("email") ?: "",
         department = getString("department") ?: "",
         role = getString("role") ?: "",
-        phone = getString("phone") ?: ""
+        phone = getString("phone") ?: "",
+        isActive = getBoolean("isActive") ?: true,
+        createdAt = getLong("createdAt") ?: 0L
     )
+
+    suspend fun toggleUserActive(uid: String, isActive: Boolean): Result<Unit> {
+        return try {
+            usersCollection.document(uid).update("isActive", isActive).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

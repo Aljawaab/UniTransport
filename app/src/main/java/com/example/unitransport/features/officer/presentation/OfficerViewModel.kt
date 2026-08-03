@@ -30,7 +30,9 @@ import com.example.unitransport.data.repository.BookingRepository
 import com.example.unitransport.data.repository.VehicleRepository
 import com.example.unitransport.data.repository.UserRepository
 import com.example.unitransport.data.repository.LocationRepository
+import com.example.unitransport.data.repository.NotificationRepository
 import com.example.unitransport.features.driver.model.TripStatus
+import com.example.unitransport.features.notifications.model.NotificationType
 import kotlinx.coroutines.flow.combine
 
 @HiltViewModel
@@ -38,7 +40,8 @@ class OfficerViewModel @Inject constructor(
     private val bookingRepository: BookingRepository,
     private val vehicleRepository: VehicleRepository,
     private val userRepository: UserRepository,
-    private val locationRepository: LocationRepository
+    private val locationRepository: LocationRepository,
+    private val notificationRepository: NotificationRepository
 ) : ViewModel() {
 
     // Dashboard state
@@ -127,6 +130,30 @@ class OfficerViewModel @Inject constructor(
                     }
                 )
             )
+        }
+    }
+
+    private fun notifyBookingStatusChange(
+        bookingId: String,
+        approved: Boolean,
+        reason: String? = null
+    ) {
+        viewModelScope.launch {
+            val booking = bookingRepository.getBookingById(bookingId).first()
+            if (booking != null && booking.userId.isNotBlank()) {
+                notificationRepository.addNotification(
+                    userId = booking.userId,
+                    title = if (approved) "Booking Approved ✓" else "Booking Rejected",
+                    message = if (approved)
+                        "Your booking to ${booking.destination} has been approved."
+                    else
+                        "Your booking to ${booking.destination} was rejected." +
+                                (reason?.let { " Reason: $it" } ?: ""),
+                    type = if (approved) NotificationType.BOOKING_APPROVED
+                    else NotificationType.BOOKING_REJECTED,
+                    relatedId = booking.id
+                )
+            }
         }
     }
 
@@ -314,6 +341,7 @@ class OfficerViewModel @Inject constructor(
                     _approveState.value = UiState.Success(Unit)
                     loadAllRequests()
                     onSuccess()
+                    notifyBookingStatusChange(bookingId, approved = true)
                 },
                 onFailure = { error ->
                     _approveState.value = UiState.Error(
@@ -358,6 +386,7 @@ class OfficerViewModel @Inject constructor(
                     _rejectState.value = UiState.Success(Unit)
                     loadAllRequests()
                     onSuccess()
+                    notifyBookingStatusChange(currentRejectionBookingId, approved = false, reason = rejectionReason)
                 },
                 onFailure = { error ->
                     _rejectState.value = UiState.Error(
@@ -389,6 +418,19 @@ class OfficerViewModel @Inject constructor(
                     _assignState.value = UiState.Success(Unit)
                     loadAllRequests()
                     onSuccess()
+                    viewModelScope.launch {
+                        val booking = bookingRepository.getBookingById(bookingId).first()
+                        if (booking != null && booking.userId.isNotBlank()) {
+                            notificationRepository.addNotification(
+                                userId = booking.userId,
+                                title = "Vehicle Assigned",
+                                message = "Vehicle $vehicleReg with driver $driverName has been " +
+                                        "assigned to your trip to ${booking.destination}.",
+                                type = NotificationType.BOOKING_APPROVED,
+                                relatedId = booking.id
+                            )
+                        }
+                    }
                 },
                 onFailure = { error ->
                     _assignState.value = UiState.Error(

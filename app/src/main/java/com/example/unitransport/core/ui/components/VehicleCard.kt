@@ -31,12 +31,14 @@ import com.example.unitransport.core.ui.theme.StatusMaintenance
 import com.example.unitransport.core.ui.theme.StatusPending
 import com.example.unitransport.core.ui.theme.StatusRejected
 import com.example.unitransport.features.vehicles.model.Vehicle
+import com.example.unitransport.features.vehicles.model.VehicleDisplayStatus
 import com.example.unitransport.features.vehicles.model.VehicleStatus
 
 @Composable
 fun VehicleCard(
     vehicle: Vehicle,
     onClick: () -> Unit,
+    displayStatus: VehicleDisplayStatus? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -69,7 +71,11 @@ fun VehicleCard(
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                 ) {
-                    VehicleStatusChip(status = vehicle.status)
+                    if (displayStatus != null) {
+                        VehicleDisplayStatusChip(status = displayStatus)
+                    } else {
+                        VehicleStatusChip(status = vehicle.status)
+                    }
                 }
             }
 
@@ -134,6 +140,29 @@ fun VehicleStatusChip(status: VehicleStatus) {
         VehicleStatus.RESERVED -> StatusPending to "Reserved"
         VehicleStatus.MAINTENANCE -> StatusMaintenance to "Maintenance"
         VehicleStatus.OUT_OF_SERVICE -> StatusRejected to "Out of Service"
+    }
+    Box(
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.extraSmall)
+            .background(Color.White.copy(alpha = 0.9f))
+            .padding(horizontal = 6.dp, vertical = 3.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = color
+        )
+    }
+}
+
+@Composable
+fun VehicleDisplayStatusChip(status: VehicleDisplayStatus) {
+    val (color, label) = when (status) {
+        VehicleDisplayStatus.AVAILABLE -> StatusApproved to "Available"
+        VehicleDisplayStatus.BOOKED -> StatusPending to "Booked"
+        VehicleDisplayStatus.ON_TRIP -> MaterialTheme.colorScheme.primary to "On Trip"
+        VehicleDisplayStatus.MAINTENANCE -> StatusMaintenance to "Maintenance"
+        VehicleDisplayStatus.OUT_OF_SERVICE -> StatusRejected to "Out of Service"
     }
     Box(
         modifier = Modifier
